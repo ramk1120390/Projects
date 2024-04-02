@@ -119,4 +119,6 @@ public class Shelf {
 		this.realtion = realtion;
 	}
 
+	public Shelf() {
+	}
 }
