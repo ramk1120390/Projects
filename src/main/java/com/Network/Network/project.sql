@@ -673,6 +673,204 @@ END;
 $$;
 
 -----------------------end------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE update_port_on_device(
+    IN p_portid BIGINT,
+    IN p_portname VARCHAR(255),
+    IN p_positionOnDevice INTEGER,
+    IN p_portType VARCHAR(255),
+    IN p_operationalState VARCHAR(255),
+    IN p_administrativeState VARCHAR(255),
+    IN p_usageState VARCHAR(255),
+    IN p_href VARCHAR(255),
+    IN p_portSpeed VARCHAR(255),
+    IN p_capacity INTEGER,
+    IN p_managementIp VARCHAR(255),
+    IN p_orderId BIGINT,
+    IN p_deviceName VARCHAR(255),
+    INOUT success INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    existcardslotname VARCHAR(255);
+BEGIN
+    -- Initialize success flag
+    success := 0;
+    -- Begin transaction
+    BEGIN       
+        -- Check if data exists at the specified position
+      IF EXISTS (
+    SELECT 1 
+    FROM port 
+    WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+) THEN
+    -- If data exists, raise an exception
+    RAISE EXCEPTION 'Port device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+END IF;
+
+IF EXISTS (
+    SELECT 1 
+    FROM pluggable 
+    WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+) THEN
+    -- If data exists, raise an exception
+    RAISE EXCEPTION 'Pluggable device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+END IF;
+
+        
+        -- Get the cardslotname associated with the portid
+        SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+
+        -- Perform an update in the port table
+        UPDATE port
+        SET portname = p_portname,
+            position_on_card = 0,
+            position_on_device = p_positionOnDevice,
+            port_type = 'device-to-port',
+            operational_state = p_operationalState,
+            administrative_state = p_administrativeState,
+            usage_state = p_usageState,
+            href = p_href,
+            port_speed = p_portSpeed,
+            capacity = p_capacity,
+            management_ip = p_managementIp,
+            relation = 'device-to-port',
+            cardname = null,
+            cardlslotname = null,  -- Set cardslotname to null
+            order_id = p_orderId,
+            devicename = p_deviceName
+        WHERE portid = p_portid;
+        
+        -- If the retrieved cardslotname exists, delete the corresponding record from the card_slot table
+        IF existcardslotname IS NOT NULL THEN
+            DELETE FROM card_slot WHERE name = existcardslotname;
+        END IF;
+        
+        success := 1; -- Set success flag to 1 if the update is successful
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- If any exception occurs, rollback transaction and set success flag to 0
+            ROLLBACK;
+            success := 0;
+            -- Re-raise the exception for handling at the calling end
+            RAISE;
+    END;
+END;
+$$;
+--------------- end------------------------------------------------------------------------------------
+
+CREATE OR REPLACE PROCEDURE update_port_on_card(
+    IN p_portid BIGINT,
+    IN p_portname VARCHAR(255),
+    IN p_positionOnCard INTEGER,
+    IN p_portType VARCHAR(255),
+    IN p_operationalState VARCHAR(255),
+    IN p_administrativeState VARCHAR(255),
+    IN p_usageState VARCHAR(255),
+    IN p_href VARCHAR(255),
+    IN p_portSpeed VARCHAR(255),
+    IN p_cardname VARCHAR(255),
+    IN p_cardslotname VARCHAR(255),
+    IN p_capacity INTEGER,
+    IN p_managementIp VARCHAR(255),
+    IN p_orderId BIGINT,
+    IN p_deviceName VARCHAR(255),
+    INOUT success INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    existcardslotname VARCHAR(255);
+    d_cardid BIGINT;
+    d_cardslotname VARCHAR(255);
+BEGIN
+    -- Initialize success flag
+    success := 0;
+    -- Begin transaction
+    BEGIN
+        -- Get the cardslotname associated with the portid
+        SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+
+        -- Check if cardid exists for the provided cardname and devicename
+        SELECT cardid INTO d_cardid FROM card WHERE cardname = p_cardname AND devicename = p_deviceName;
+        IF NOT FOUND THEN
+            -- If cardid not found, raise an exception
+            RAISE EXCEPTION 'Cardid not found for cardname % and devicename %', p_cardname, p_deviceName;
+        END IF;
+
+        -- Construct the full card slot name
+        d_cardslotname := p_cardname || d_cardid || '/' || p_positionOnCard;
+
+        -- Check if the retrieved cardslotname exists and is different from the input cardslotname
+       
+        IF existcardslotname IS NULL THEN
+            -- If the cardslotname does not exist, insert a new record into the card_slot table
+            INSERT INTO card_slot("name", slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
+            VALUES (d_cardslotname, p_positionOnCard, p_operationalState, p_administrativeState, p_usageState, p_href, p_cardname, 'card-to-cardslot', d_cardid);
+        ELSE
+            -- If the cardslotname exists, check if it's different from the generated cardslotname
+            IF existcardslotname != d_cardslotname THEN
+                -- Check if the generated cardslotname already exists in the card_slot table
+                PERFORM * FROM card_slot WHERE "name" = p_cardslotname;
+                -- If a record exists, throw an exception indicating the cardslot is already occupied
+                IF FOUND THEN
+                    RAISE EXCEPTION 'Given cardslot already occupied';
+                END IF;
+            END IF;
+
+            -- Update the corresponding record in the card_slot table
+            UPDATE card_slot
+            SET "name" = p_cardslotname,
+                slot_position = p_positionOnCard,
+                operational_state = p_operationalState,
+                administrative_state = p_administrativeState,
+                usage_state = p_usageState,
+                href = p_href,
+                cardname = p_cardname,
+                realation = 'card-to-port', -- Corrected the column name
+                cardid = d_cardid
+            WHERE "name" = existcardslotname;
+        END IF;
+
+        -- Perform an update in the port table
+        UPDATE port
+        SET portname = p_portname,
+            position_on_card = p_positionOnCard,
+            position_on_device = 0,
+            port_type = 'card-to-port',
+            operational_state = p_operationalState,
+            administrative_state = p_administrativeState,
+            usage_state = p_usageState,
+            href = p_href,
+            port_speed = p_portSpeed,
+            capacity = p_capacity,
+            management_ip = p_managementIp,
+            relation = 'cardslot-to-port',
+            cardname = p_cardname,
+            cardlslotname = p_cardslotname,
+            order_id = p_orderId,
+            devicename = NULL -- Changed 'null' to NULL
+        WHERE portid = p_portid;
+        
+        -- Set success flag to 1 if the update is successful
+        success := 1;
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- If any exception occurs, rollback transaction and set success flag to 0
+            ROLLBACK;
+            success := 0;
+            -- Re-raise the exception for handling at the calling end
+            RAISE;
+    END;
+END;
+$$;
+-------------------end------------------------------------------------------------------------------------
+
+
+
+
 
 
 

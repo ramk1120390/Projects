@@ -148,5 +148,13 @@ public class PortDTO {
     public void setDeviceName(String deviceName) {
         this.deviceName = deviceName;
     }
-// Getters and setters
+
+    public String getCardslotname() {
+        return cardslotname;
+    }
+
+    public void setCardslotname(String cardslotname) {
+        this.cardslotname = cardslotname;
+    }
+    // Getters and setters
 }

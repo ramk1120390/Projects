@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -196,7 +197,7 @@ public class DeviceApi {
             Card exCard = cardRepo.findCardsByCardNameAndDeviceName(cardDto.getCardname(), deviceName);
             System.out.println("excard" + exCard);
             if (exCard != null) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card already exists with shelf");
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card already exists ");
             }
             DeviceMetaModel deviceModel = deviceMetaModelRepo.findByDeviceModel(device.getDeviceModel().toLowerCase());
             if (deviceModel == null) {
@@ -562,6 +563,135 @@ public class DeviceApi {
     }
 
 
+    @PostMapping("/updatePortbyid")
+    public ResponseEntity<String> updatePortbyid(@RequestParam("portid") Long portid,
+                                                 @RequestParam("orderid") Long orderid,
+                                                 @RequestBody PortDTO portDto) {
+        try {
+            int success = 0;
+            String updatedCardSlotName = null;
+            Device exDevice = null;
+            Port exPort = portRepo.findByPortid(portid);
+            System.out.println("position on card" + exPort.getPositionOnCard());
+            if (exPort == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given port id not found");
+            }
+            String cardname = exPort.getCardname() == null ? "Na" : exPort.getCardname();
+            String deviceName = exPort.getDevice() == null || exPort.getDevice().getDevicename() == null ? "Na" : exPort.getDevice().getDevicename();
+            String cardSlotName = exPort.getCardSlot() == null || exPort.getCardSlot().getName() == null ? "Na" : exPort.getCardSlot().getName();
+            String existingportname = exPort.getPortname();
+            int exPortPositionOnCard = exPort.getPositionOnCard();
+            int exPortPositionOnDevice = exPort.getPositionOnDevice();
+            if (portDto.getDeviceName() != null) {
+                exDevice = deviceRepo.findByDevicename(portDto.getDeviceName());
+                if (exDevice == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device not found");
+                }
+            }
+            Optional<Order> order = orderRepo.findById(orderid);
+            if (order.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given order not found");
+            }
+            if (portDto.getCardname() != null && !cardname.equals(portDto.getCardname())) {
+                List<Card> cards = cardRepo.findCards(portDto.getCardname());
+                if (cards.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given card name not found");
+                }
+            }
+
+            if (portDto.getPositionOnDevice() == 0 && portDto.getPositionOnCard() == 0 ||
+                    portDto.getPositionOnDevice() != 0 && portDto.getPositionOnCard() != 0) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input");
+            }
+            if (portDto.getPortname() != null) {
+                // Check if the port name is being updated
+                if (!portDto.getPortname().equals(exPort.getPortname())) {
+                    // Find the port by the new port name and device name
+                    exPort = portRepo.findPortByDeviceNameAndPortName(portDto.getDeviceName(), portDto.getPortname());
+                    if (exPort != null) {
+                        // If the port already exists, return conflict
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Given Port already found");
+                    }
+                }
+                if (portDto.getPositionOnDevice() != 0) {
+                    if (portDto.getPositionOnCard() != 0 || portDto.getCardslotname() != null || portDto.getCardname() != null
+                            || portDto.getDeviceName() == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input for portdevice");
+                    }
+                    if (!portDto.getPositionOnDevice().equals(exPortPositionOnDevice) || exPortPositionOnDevice == 0
+                            || !existingportname.equals(portDto.getPortname())) {
+                        Pluggable exPluggable = pluggableRepo.findByDeviceNameAndPositionOnDevice(portDto.getDeviceName(), portDto.getPositionOnDevice());
+                        if (exPluggable != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to a pluggable device");
+                        }
+                        exPort = portRepo.findByDeviceNameAndPositionOnDevice(portDto.getDeviceName(), portDto.getPositionOnDevice());
+                        if (exPort != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to another port");
+                        }
+                    }
+                }
+
+                if (portDto.getPositionOnCard() != 0) {
+                    if (portDto.getPositionOnDevice() != 0 || portDto.getCardslotname() == null || portDto.getCardname() == null
+                    ) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input for port card");
+                    }
+                    if (portDto.getCardname() != null && !portDto.getCardname().equals(cardname) && portDto.getDeviceName() == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Device name must be provided if card name is not null");
+                    }
+                    // Check if positionOnCard is updated
+                    if (!portDto.getPositionOnCard().equals(exPortPositionOnCard)) {
+                        Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
+                        if (exCard == null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
+                        }
+                        Long cardid = exCard.getCardid();
+                        // Construct the full card slot name
+                        updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
+                        // Check if a pluggable device or port already exists at the specified position
+                        Pluggable exPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
+                        if (exPluggable != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given cardslot already found");
+                        }
+                        exPort = portRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
+                        if (exPort != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given cardslot already found");
+                        }
+                    }
+                }
+
+                if (portDto.getPositionOnDevice() != 0 && portDto.getDeviceName() != null) {
+                    success = portRepo.updatePortOnDevice(portid, portDto.getPortname(), portDto.getPositionOnDevice()
+                            , portDto.getPortType(), portDto.getOperationalState(), portDto.getAdministrativeState(),
+                            portDto.getUsageState(), portDto.getHref(), portDto.getPortSpeed(),
+                            portDto.getCapacity(), portDto.getManagementIp(),
+                            orderid, portDto.getDeviceName(), 0);
+                } else {
+                    success = portRepo.updatePortOnCard(portid, portDto.getPortname(), portDto.getPositionOnCard(), portDto.getPortType(), portDto.getOperationalState(),
+                            portDto.getAdministrativeState(), portDto.getUsageState(), portDto.getHref(), portDto.getPortSpeed(),
+                            cardname, updatedCardSlotName, portDto.getCapacity(), portDto.getManagementIp(),
+                            orderid, portDto.getDeviceName(), 0);
+                }
+
+            }
+
+            if (success == 1) {
+                return ResponseEntity.ok("port updated successfully");
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to updated port");
+            }
+        } catch (DataAccessException dataAccessException) {
+            // Handle data access exception (which may include SQL exceptions)
+            dataAccessException.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + dataAccessException.getMessage());
+        } catch (Exception e) {
+            // Handle other exceptions
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request: " + e.getMessage());
+        }
+    }
+
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -582,7 +712,8 @@ public class DeviceApi {
         }
     }
 
-    public JsonNode globalSearch(String tableName, String columnName, String searchTerm, String filterType) throws SQLException, JsonProcessingException {
+    public JsonNode globalSearch(String tableName, String columnName, String searchTerm, String filterType) throws
+            SQLException, JsonProcessingException {
         String query = "SELECT global_search(?, ?, ?, ?)";
         String jsonString = jdbcTemplate.queryForObject(query, new Object[]{tableName, columnName, searchTerm, filterType}, String.class);
         return objectMapper.readTree(jsonString);

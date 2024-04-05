@@ -8,9 +8,10 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface CardRepo extends JpaRepository<Card,String> {
+public interface CardRepo extends JpaRepository<Card, String> {
     @Query(value = "SELECT * FROM card WHERE cardname = ?1 AND devicename = ?2", nativeQuery = true)
     Card findCardsByCardNameAndDeviceName(String cardName, String deviceName);
+
     @Query(value = "SELECT * FROM card c WHERE c.slotname = :slotName", nativeQuery = true)
     Card findCardsBySlotName(@Param("slotName") String slotName);
 
@@ -53,8 +54,12 @@ public interface CardRepo extends JpaRepository<Card,String> {
             @Param("i_slotid") Long slotId,
             @Param("success") Integer success
     );
+
     @Query(value = "SELECT * FROM card WHERE cardname = ?1", nativeQuery = true)
     List<Card> findCards(String cardName);
+
     Card findByCardid(Long cardid);
+
+
 
 }

@@ -4,6 +4,7 @@ import com.Network.Network.DevicemetamodelPojo.Card;
 import com.Network.Network.DevicemetamodelPojo.Port;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
 
 public interface PortRepo extends JpaRepository<Port, Long> {
@@ -60,4 +61,47 @@ public interface PortRepo extends JpaRepository<Port, Long> {
                          @Param("i_order_id") Long orderId,
                          @Param("i_devicename") String devicename,
                          @Param("o_success") Integer success);
+
+    Port findByPortid(Long portid);
+
+    @Query(value = "CALL update_port_on_device(:p_portid, :p_portname, :p_positionOnDevice, :p_portType, :p_operationalState, :p_administrativeState, "
+            + ":p_usageState, :p_href, :p_portSpeed, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :success)",
+            nativeQuery = true)
+    int updatePortOnDevice(@Param("p_portid") Long portId,
+                           @Param("p_portname") String portName,
+                           @Param("p_positionOnDevice") Integer positionOnDevice,
+                           @Param("p_portType") String portType,
+                           @Param("p_operationalState") String operationalState,
+                           @Param("p_administrativeState") String administrativeState,
+                           @Param("p_usageState") String usageState,
+                           @Param("p_href") String href,
+                           @Param("p_portSpeed") String portSpeed,
+                           @Param("p_capacity") Integer capacity,
+                           @Param("p_managementIp") String managementIp,
+                           @Param("p_orderId") Long orderId,
+                           @Param("p_deviceName") String deviceName,
+                           @Param("success") Integer success);
+
+    @Query(value = "CALL update_port_on_card(:p_portid, :p_portname, :p_positionOnCard, :p_portType, :p_operationalState, :p_administrativeState, "
+            + ":p_usageState, :p_href, :p_portSpeed, :p_cardname, :p_cardslotname, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :success)",
+            nativeQuery = true)
+    int updatePortOnCard(
+            @Param("p_portid") Long p_portid,
+            @Param("p_portname") String p_portname,
+            @Param("p_positionOnCard") Integer p_positionOnCard,
+            @Param("p_portType") String p_portType,
+            @Param("p_operationalState") String p_operationalState,
+            @Param("p_administrativeState") String p_administrativeState,
+            @Param("p_usageState") String p_usageState,
+            @Param("p_href") String p_href,
+            @Param("p_portSpeed") String p_portSpeed,
+            @Param("p_cardname") String p_cardname,
+            @Param("p_cardslotname") String p_cardslotname,
+            @Param("p_capacity") Integer p_capacity,
+            @Param("p_managementIp") String p_managementIp,
+            @Param("p_orderId") Long p_orderId,
+            @Param("p_deviceName") String p_deviceName,
+            @Param("success") Integer success
+    );
+
 }
