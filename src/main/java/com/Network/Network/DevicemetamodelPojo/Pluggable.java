@@ -32,17 +32,139 @@ public class Pluggable {
     @JoinColumn(name = "devicename", referencedColumnName = "devicename", nullable = true)
     private Device device;
 
-    public void setDevice(Device device) {
-        this.device = device;
-        if (device != null) {
-            this.cardSlot = null; // Set cardSlot to null when device is set
-        }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getPlugablename() {
+        return plugablename;
+    }
+
+    public void setPlugablename(String plugablename) {
+        this.plugablename = plugablename;
+    }
+
+    public Integer getPositionOnCard() {
+        return positionOnCard;
+    }
+
+    public void setPositionOnCard(Integer positionOnCard) {
+        this.positionOnCard = positionOnCard;
+    }
+
+    public Integer getPositionOnDevice() {
+        return positionOnDevice;
+    }
+
+    public void setPositionOnDevice(Integer positionOnDevice) {
+        this.positionOnDevice = positionOnDevice;
+    }
+
+    public String getVendor() {
+        return vendor;
+    }
+
+    public void setVendor(String vendor) {
+        this.vendor = vendor;
+    }
+
+    public String getPluggableModel() {
+        return pluggableModel;
+    }
+
+    public void setPluggableModel(String pluggableModel) {
+        this.pluggableModel = pluggableModel;
+    }
+
+    public String getPluggablePartNumber() {
+        return pluggablePartNumber;
+    }
+
+    public void setPluggablePartNumber(String pluggablePartNumber) {
+        this.pluggablePartNumber = pluggablePartNumber;
+    }
+
+    public String getOperationalState() {
+        return operationalState;
+    }
+
+    public void setOperationalState(String operationalState) {
+        this.operationalState = operationalState;
+    }
+
+    public String getAdministrativeState() {
+        return administrativeState;
+    }
+
+    public void setAdministrativeState(String administrativeState) {
+        this.administrativeState = administrativeState;
+    }
+
+    public String getUsageState() {
+        return usageState;
+    }
+
+    public void setUsageState(String usageState) {
+        this.usageState = usageState;
+    }
+
+    public String getHref() {
+        return href;
+    }
+
+    public void setHref(String href) {
+        this.href = href;
+    }
+
+    public String getManagementIp() {
+        return managementIp;
+    }
+
+    public void setManagementIp(String managementIp) {
+        this.managementIp = managementIp;
+    }
+
+    public String getRelation() {
+        return relation;
+    }
+
+    public void setRelation(String relation) {
+        this.relation = relation;
+    }
+
+    public String getCardname() {
+        return cardname;
+    }
+
+    public void setCardname(String cardname) {
+        this.cardname = cardname;
+    }
+
+    public CardSlot getCardSlot() {
+        return cardSlot;
     }
 
     public void setCardSlot(CardSlot cardSlot) {
         this.cardSlot = cardSlot;
-        if (cardSlot != null) {
-            this.device = null; // Set device to null when cardSlot is set
-        }
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public void setOrder(Order order) {
+        this.order = order;
+    }
+
+    public Device getDevice() {
+        return device;
+    }
+
+    public void setDevice(Device device) {
+        this.device = device;
     }
 }

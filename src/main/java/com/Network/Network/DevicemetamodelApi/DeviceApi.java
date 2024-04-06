@@ -691,6 +691,137 @@ public class DeviceApi {
         }
     }
 
+    @PostMapping("/updatePluggablebyid")
+    public ResponseEntity<String> updatePluggablebyid(@RequestParam("plugableid") Long plugableid,
+                                                      @RequestParam("orderid") Long orderid,
+                                                      @RequestBody PluggableDTO portDto) {
+        try {
+            int success = 0;
+            String updatedCardSlotName = null;
+            Device exDevice = null;
+            Optional<Pluggable> exPluggableOptional = pluggableRepo.findById(plugableid);
+            if (exPluggableOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable id not found");
+            }
+            Pluggable exPluggable = exPluggableOptional.get();
+            String cardname = exPluggable.getCardname() == null ? "Na" : exPluggable.getCardname();
+            String deviceName = exPluggable.getDevice() == null || exPluggable.getDevice().getDevicename() == null ? "Na" :
+                    exPluggable.getDevice().getDevicename();
+            String cardSlotName = exPluggable.getCardSlot() == null || exPluggable.getCardSlot().getName() == null ? "Na" :
+                    exPluggable.getCardSlot().getName();
+            String existingPluggableName = exPluggable.getPlugablename();
+            int exPluggablePositionOnCard = exPluggable.getPositionOnCard();
+            int exPluggablePositionOnDevice = exPluggable.getPositionOnDevice();
+
+            if (portDto.getDeviceName() != null) {
+                exDevice = deviceRepo.findByDevicename(portDto.getDeviceName());
+                if (exDevice == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device not found");
+                }
+            }
+            Optional<Order> order = orderRepo.findById(orderid);
+            if (order.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given order not found");
+            }
+            if (portDto.getCardname() != null && !cardname.equals(portDto.getCardname())) {
+                List<Card> cards = cardRepo.findCards(portDto.getCardname());
+                if (cards.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given card name not found");
+                }
+            }
+
+            if (portDto.getPositionOnDevice() == 0 && portDto.getPositionOnCard() == 0 ||
+                    portDto.getPositionOnDevice() != 0 && portDto.getPositionOnCard() != 0) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input");
+            }
+            if (portDto.getPlugablename() != null) {
+                // Check if the port name is being updated
+                if (!portDto.getPlugablename().equals(exPluggable.getPlugablename())) {
+                    // Find the port by the new port name and device name
+                    exPluggable = pluggableRepo.findByDeviceNameAndPluggableName(portDto.getDeviceName(), portDto.getPlugablename());
+                    if (exPluggable != null) {
+                        // If the port already exists, return conflict
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Given Pluggable already found");
+                    }
+                }
+                if (portDto.getPositionOnDevice() != 0) {
+                    if (portDto.getPositionOnCard() != 0 || portDto.getCardSlotName() != null || portDto.getCardname() != null
+                            || portDto.getDeviceName() == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input for portdevice");
+                    }
+                    if (!portDto.getPositionOnDevice().equals(exPluggablePositionOnDevice) ||
+                            exPluggablePositionOnDevice == 0 || !existingPluggableName.equals(portDto.getPlugablename())) {
+                        exPluggable = pluggableRepo.findByDeviceNameAndPositionOnDevice(portDto.getDeviceName(), portDto.getPositionOnDevice());
+                        if (exPluggable != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to a pluggable device");
+                        }
+                        Port exPort = portRepo.findByDeviceNameAndPositionOnDevice(portDto.getDeviceName(), portDto.getPositionOnDevice());
+                        if (exPort != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to another port");
+                        }
+                    }
+                }
+
+                if (portDto.getPositionOnCard() != 0) {
+                    if (portDto.getPositionOnDevice() != 0 || portDto.getCardSlotName() == null || portDto.getCardname() == null
+                    ) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Please provide valid input for port card");
+                    }
+                    if (portDto.getCardname() != null && !portDto.getCardname().equals(cardname) && portDto.getDeviceName() == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Device name must be provided if card name is not null");
+                    }
+                    // Check if positionOnCard is updated
+                    if (!portDto.getPositionOnCard().equals(exPluggablePositionOnCard)) {
+                        Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
+                        if (exCard == null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
+                        }
+                        Long cardid = exCard.getCardid();
+                        // Construct the full card slot name
+                        updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
+                        // Check if a pluggable device or port already exists at the specified position
+                        exPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
+                        if (exPluggable != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given cardslot already found");
+                        }
+                        Port exPort = portRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
+                        if (exPort != null) {
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given cardslot already found");
+                        }
+                    }
+                }
+
+                if (portDto.getPositionOnDevice() != 0 && portDto.getDeviceName() != null) {
+                    success = pluggableRepo.updatePluggableOnDevice(plugableid, portDto.getPlugablename(),
+                            portDto.getPluggableModel(), portDto.getPluggablePartNumber(), portDto.getPositionOnDevice(),
+                            portDto.getOperationalState(), portDto.getAdministrativeState(), portDto.getUsageState(),
+                            portDto.getHref(), portDto.getManagementIp(), portDto.getVendor(), orderid,
+                            portDto.getDeviceName(), 0);
+                } else {
+                    success = pluggableRepo.updatePluggableOnCard(plugableid, portDto.getPlugablename(),
+                            portDto.getPluggableModel(), portDto.getPluggablePartNumber(), portDto.getPositionOnCard(),
+                            portDto.getOperationalState(), portDto.getAdministrativeState(), portDto.getUsageState(),
+                            portDto.getHref(), portDto.getManagementIp(), portDto.getVendor(), orderid,
+                            portDto.getCardname(), updatedCardSlotName, portDto.getDeviceName(), 0);
+                }
+            }
+            if (success == 1) {
+                return ResponseEntity.ok("Pluggable updated successfully");
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to updated Pluggable");
+            }
+        } catch (DataAccessException dataAccessException) {
+            // Handle data access exception (which may include SQL exceptions)
+            dataAccessException.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + dataAccessException.getMessage());
+        } catch (Exception e) {
+            // Handle other exceptions
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request: " + e.getMessage());
+        }
+    }
+
+
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

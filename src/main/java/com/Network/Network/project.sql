@@ -867,6 +867,199 @@ BEGIN
 END;
 $$;
 -------------------end------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE update_pluggable_on_device(
+    IN p_pluggableid BIGINT,
+    IN p_pluggablename VARCHAR(255),
+    IN p_pluggableModel VARCHAR(255),
+    IN p_pluggablePartNumber VARCHAR(255),
+    IN p_positionOnDevice INTEGER,
+    IN p_operationalState VARCHAR(255),
+    IN p_administrativeState VARCHAR(255),
+    IN p_usageState VARCHAR(255),
+    IN p_href VARCHAR(255),
+    IN p_managementIp VARCHAR(255),
+    IN p_vendor VARCHAR(255),
+    IN p_orderId BIGINT,
+    IN p_deviceName VARCHAR(255),
+    INOUT success INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    existcardlslotname VARCHAR(255);
+BEGIN
+    -- Initialize success flag
+    success := 0;
+    -- Begin transaction
+    BEGIN       
+        -- Check if data exists at the specified position
+        IF EXISTS (
+            SELECT 1 
+            FROM pluggable 
+            WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+        ) THEN
+            -- If data exists, raise an exception
+            RAISE EXCEPTION 'Pluggable device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 
+            FROM port 
+            WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+        ) THEN
+            -- If data exists, raise an exception
+            RAISE EXCEPTION 'Port device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+        END IF;
+
+        -- Get the cardlslotname associated with the pluggableid
+        SELECT cardlslotname INTO existcardlslotname FROM pluggable WHERE id = p_pluggableid;
+
+        -- Perform an update in the pluggable table
+        UPDATE pluggable
+        SET plugablename = p_pluggablename,
+            pluggable_model = p_pluggableModel,
+            pluggable_part_number = p_pluggablePartNumber,
+            position_on_device = p_positionOnDevice,
+            operational_state = p_operationalState,
+            administrative_state = p_administrativeState,
+            usage_state = p_usageState,
+            href = p_href,
+            management_ip = p_managementIp,
+            vendor = p_vendor,
+            position_on_card = 0,
+            cardname = null,
+            cardlslotname = null,  -- Set cardlslotname to null
+            order_id = p_orderId,
+            relation='DEVICE-TO-PLUGGABLE',
+            devicename = p_deviceName
+        WHERE id = p_pluggableid;
+
+        -- If the retrieved cardlslotname exists, delete the corresponding record from the card_slot table
+        IF existcardlslotname IS NOT NULL THEN
+            DELETE FROM card_slot WHERE name = existcardlslotname;
+        END IF;
+
+        success := 1; -- Set success flag to 1 if the update is successful
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- If any exception occurs, rollback transaction and set success flag to 0
+            ROLLBACK;
+            success := 0;
+            -- Re-raise the exception for handling at the calling end
+            RAISE;
+    END;
+END;
+$$;
+---------------------end------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE update_pluggable_on_card(
+    IN p_pluggableid BIGINT,
+    IN p_pluggablename VARCHAR(255),
+    IN p_pluggableModel VARCHAR(255),
+    IN p_pluggablePartNumber VARCHAR(255),
+    IN p_positionOnCard INTEGER,
+    IN p_operationalState VARCHAR(255),
+    IN p_administrativeState VARCHAR(255),
+    IN p_usageState VARCHAR(255),
+    IN p_href VARCHAR(255),
+    IN p_managementIp VARCHAR(255),
+    IN p_vendor VARCHAR(255),
+    IN p_orderId BIGINT,
+    IN p_cardname VARCHAR(255),
+    IN p_cardslotname VARCHAR(255),
+    IN p_deviceName VARCHAR(255),
+    INOUT success INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    existcardslotname VARCHAR(255);
+    d_cardid BIGINT;
+    d_cardslotname VARCHAR(255);
+BEGIN
+    -- Initialize success flag
+    success := 0;
+    -- Begin transaction
+    BEGIN
+        -- Get the cardslotname associated with the pluggableid
+        SELECT cardlslotname INTO existcardslotname FROM pluggable WHERE id = p_pluggableid;
+
+        -- Check if cardid exists for the provided cardname and devicename
+        SELECT cardid INTO d_cardid FROM card WHERE cardname = p_cardname AND devicename = p_deviceName;
+        IF NOT FOUND THEN
+            -- If cardid not found, raise an exception
+            RAISE EXCEPTION 'Cardid not found for cardname % and devicename %', p_cardname, p_deviceName;
+        END IF;
+
+        -- Construct the full card slot name
+        d_cardslotname := p_cardname || d_cardid || '/' || p_positionOnCard;
+
+        -- Check if the retrieved cardslotname exists and is different from the input cardslotname
+        IF existcardslotname IS NULL THEN
+            -- If the cardslotname does not exist, insert a new record into the card_slot table
+            INSERT INTO card_slot("name", slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
+            VALUES (d_cardslotname, p_positionOnCard, p_operationalState, p_administrativeState, p_usageState, p_href, p_cardname, 'card-to-cardslot', d_cardid);
+        ELSE
+            -- If the cardslotname exists, check if it's different from the generated cardslotname
+            IF existcardslotname != d_cardslotname THEN
+                -- Check if the generated cardslotname already exists in the card_slot table
+                PERFORM * FROM card_slot WHERE "name" = p_cardslotname;
+                -- If a record exists, throw an exception indicating the cardslot is already occupied
+                IF FOUND THEN
+                    RAISE EXCEPTION 'Given cardslot already occupied';
+                END IF;
+            END IF;
+
+            -- Update the corresponding record in the card_slot table
+            UPDATE card_slot
+            SET "name" = p_cardslotname,
+                slot_position = p_positionOnCard,
+                operational_state = p_operationalState,
+                administrative_state = p_administrativeState,
+                usage_state = p_usageState,
+                href = p_href,
+                cardname = p_cardname,
+                realation = 'card-to-pluggable', -- Corrected the column name
+                cardid = d_cardid
+            WHERE "name" = existcardslotname;
+        END IF;
+
+        -- Perform an update in the pluggable table
+        UPDATE pluggable
+        SET plugablename = p_pluggablename,
+            pluggable_model = p_pluggableModel,
+            pluggable_part_number = p_pluggablePartNumber,
+            position_on_card = p_positionOnCard,
+            position_on_device = 0,
+            relation = 'CARDSLOT-TO-PLUGGABLE',
+            operational_state = p_operationalState,
+            administrative_state = p_administrativeState,
+            usage_state = p_usageState,
+            href = p_href,
+            management_ip = p_managementIp,
+            vendor = p_vendor,
+            cardname = p_cardname,
+            cardlslotname = p_cardslotname,
+            order_id = p_orderId,
+            devicename = devicename = NULL
+        WHERE id = p_pluggableid;
+        
+        -- Set success flag to 1 if the update is successful
+        success := 1;
+        
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- If any exception occurs, rollback transaction and set success flag to 0
+            ROLLBACK;
+            success := 0;
+            -- Re-raise the exception for handling at the calling end
+            RAISE;
+    END;
+END;
+$$;
+------------------- end------------------------------------------------------------------------------------
+
+
 
 
 

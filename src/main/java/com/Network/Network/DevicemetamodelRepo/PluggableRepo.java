@@ -73,6 +73,41 @@ public interface PluggableRepo extends JpaRepository<Pluggable,Long> {
             @Param("i_devicename") String i_devicename,
             @Param("o_success") Integer o_success
     );
+    Pluggable findById(long id);
+    @Query(value = "CALL update_pluggable_on_device(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnDevice, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_deviceName, :success)", nativeQuery = true)
+    int updatePluggableOnDevice(
+            @Param("p_pluggableid") Long pluggableId,
+            @Param("p_pluggablename") String pluggableName,
+            @Param("p_pluggableModel") String pluggableModel,
+            @Param("p_pluggablePartNumber") String pluggablePartNumber,
+            @Param("p_positionOnDevice") Integer positionOnDevice,
+            @Param("p_operationalState") String operationalState,
+            @Param("p_administrativeState") String administrativeState,
+            @Param("p_usageState") String usageState,
+            @Param("p_href") String href,
+            @Param("p_managementIp") String managementIp,
+            @Param("p_vendor") String vendor,
+            @Param("p_orderId") Long orderId,
+            @Param("p_deviceName") String deviceName,
+            @Param("success") Integer success);
+    @Query(value = "CALL update_pluggable_on_card(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnCard, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_cardname, :p_cardslotname, :p_deviceName, :success)", nativeQuery = true)
+    int updatePluggableOnCard(
+            @Param("p_pluggableid") Long pluggableId,
+            @Param("p_pluggablename") String pluggableName,
+            @Param("p_pluggableModel") String pluggableModel,
+            @Param("p_pluggablePartNumber") String pluggablePartNumber,
+            @Param("p_positionOnCard") Integer positionOnCard,
+            @Param("p_operationalState") String operationalState,
+            @Param("p_administrativeState") String administrativeState,
+            @Param("p_usageState") String usageState,
+            @Param("p_href") String href,
+            @Param("p_managementIp") String managementIp,
+            @Param("p_vendor") String vendor,
+            @Param("p_orderId") Long orderId,
+            @Param("p_cardname") String cardName,
+            @Param("p_cardslotname") String cardSlotName,
+            @Param("p_deviceName") String deviceName,
+            @Param("success") Integer success);
 
 
 
