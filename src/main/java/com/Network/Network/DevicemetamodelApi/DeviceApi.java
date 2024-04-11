@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityNotFoundException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,7 @@ public class DeviceApi {
     private PortRepo portRepo;
     @Autowired
     private PluggableRepo pluggableRepo;
+
 
     @PostMapping("/insertDevice")
     public ResponseEntity<String> insertDeviceMetaModel(@RequestParam("name") String building,
@@ -161,7 +163,6 @@ public class DeviceApi {
                     }
                 }
             }
-
             int success = deviceRepo.updateDevice(administrativeState, credentials, customer, deviceModel,
                     newDeviceName, href, location, managementIp, operationalState, organisation, pollInterval,
                     rackPosition, device.getRealtion(), serialNumber, usageState, buildingName, accessKey,
@@ -821,6 +822,240 @@ public class DeviceApi {
         }
     }
 
+    @Autowired
+    LogicalPortRepo logicalPortRepo;
+    //TODO db based trigger update delete for addtional attribute
+
+    @PostMapping("/CreateLogicalPortOnCard")
+    public ResponseEntity<String> createLogicalPortOnCard(@RequestParam("id") Long id,
+                                                          @RequestParam("device") String deviceName,
+                                                          @RequestParam(name = "card") String cardName,
+                                                          @RequestParam("orderid") Long orderid,
+                                                          @RequestBody LogicalPortDTO logicalPortDTO,
+                                                          @RequestParam("type") String type) {
+        try {
+            Long portid = null;
+            Long plugableid = null;
+            if (type.equals("Port")) {
+                portid = id;
+            } else if (type.equals("Pluggable")) {
+                plugableid = id;
+            }
+            int success = 0;
+            String lptype = type.equals("Port") ? "PORT_TO_LogicalPort" : "PLUGGABLE_TO_LogicalPort";
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+
+            Optional<Order> order = orderRepo.findById(orderid);
+            if (order.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given order not found");
+            }
+            if (!deviceName.equals(logicalPortDTO.getDeviceName())) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("must match device with Req param ");
+            }
+
+            Device exDevice = deviceRepo.findByDevicename(deviceName);
+            if (exDevice == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device not found");
+            }
+
+            Card exCard = cardRepo.findCardsByCardNameAndDeviceName(cardName, deviceName);
+            if (exCard == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Card not found");
+            }
+            if (logicalPortDTO.getPositionOnPort() == 0 && logicalPortDTO.getPositionOnCard() == 0
+                    || logicalPortDTO.getPositionOnDevice() != 0) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("provide valid input");
+            }
+
+            Long cardid = exCard.getCardid();
+
+            // Validate logical port name
+            LogicalPort existingLogicalPort = logicalPortRepo.findLogicalPortsByDeviceNameAndLogicalPortName(
+                    logicalPortDTO.getDeviceName(), logicalPortDTO.getName()
+            );
+
+            if (existingLogicalPort != null) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Logical port name already exists");
+            }
+
+            // Fetch existing port/pluggable based on type
+            if (type.equals("Port")) {
+                Port exPort = portRepo.findByDeviceNameAndCardIdAndPortId(deviceName, cardid, id);
+                if (exPort == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given PortId not found");
+                }
+
+                exPort = portRepo.findByPositionOnCardAndPortId(logicalPortDTO.getPositionOnCard(), portid);
+                if (exPort == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given position on card not found");
+                }
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPortIdAndPositionOnPortAndDeviceName(
+                        portid,
+                        logicalPortDTO.getPositionOnPort(),
+                        deviceName
+                );
+                if (existingLogicalPort != null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given port position on position on port " +
+                            "occupied ");
+                }
+
+            } else if (type.equals("Pluggable")) {
+                Pluggable exPluggable = pluggableRepo.findByDeviceNameAndCardIdAndPluggableId(deviceName, cardid, id);
+                if (exPluggable == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable not found");
+                }
+
+                exPluggable = pluggableRepo.findByPositionOnCardAndPluggableId(logicalPortDTO.getPositionOnCard(), plugableid);
+                if (exPluggable == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable position on card not found");
+                }
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPlugableIdAndPositionOnPortAndDeviceName(
+                        plugableid,
+                        logicalPortDTO.getPositionOnPort(),
+                        deviceName
+                );
+                if (existingLogicalPort != null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable position on position on port " +
+                            "occupied ");
+                }
+
+            } else {
+                throw new IllegalArgumentException("Invalid type selected");
+            }
+            if (logicalPortDTO.getAdditionalAttribute() != null && !logicalPortDTO.getAdditionalAttribute().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : logicalPortDTO.getAdditionalAttribute()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
+            success = logicalPortRepo.insertLogicalPortOnCard(logicalPortDTO.getName(), logicalPortDTO.getPositionOnCard(),
+                    0, lptype, logicalPortDTO.getOperationalState(), logicalPortDTO.getAdministrativeState(),
+                    logicalPortDTO.getUsageState(), logicalPortDTO.getHref(), logicalPortDTO.getPortSpeed(),
+                    logicalPortDTO.getCapacity(), logicalPortDTO.getPositionOnPort(), logicalPortDTO.getManagementIp(),
+                    logicalPortDTO.getDeviceName(), orderid, plugableid, portid, 0, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]));
+            if (success == 1) {
+                return ResponseEntity.ok("Logical port created  successfully");
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to updated Pluggable");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/CreateLogicalPortOnDevice")
+    public ResponseEntity<String> createLogicalPortOnDevice(@RequestParam("id") Long id,
+                                                            @RequestParam("device") String deviceName,
+                                                            @RequestParam("orderid") Long orderid,
+                                                            @RequestBody LogicalPortDTO logicalPortDTO,
+                                                            @RequestParam("type") String type) {
+        try {
+            Long portid = null;
+            Long plugableid = null;
+            if (type.equals("Port")) {
+                portid = id;
+            } else if (type.equals("Pluggable")) {
+                plugableid = id;
+            }
+            int success = 0;
+            String lptype = type.equals("Port") ? "PORT_TO_LogicalPort" : "PLUGGABLE_TO_LogicalPort";
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+
+            Optional<Order> order = orderRepo.findById(orderid);
+            if (order.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given order not found");
+            }
+
+            // Ensure device name matches the one in the request body
+            if (!deviceName.equals(logicalPortDTO.getDeviceName())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Device name in the request doesn't match.");
+            }
+
+            Device exDevice = deviceRepo.findByDevicename(deviceName);
+            if (exDevice == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device not found");
+            }
+
+            // Validate logical port name
+            LogicalPort existingLogicalPort = logicalPortRepo.findLogicalPortsByDeviceNameAndLogicalPortName(
+                    logicalPortDTO.getDeviceName(), logicalPortDTO.getName()
+            );
+            if (existingLogicalPort != null) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Logical port name already exists");
+            }
+
+            // Fetch existing port/pluggable based on type
+            if (type.equals("Port")) {
+                Port exPort = portRepo.findPortByPortIdAndPositionOnDeviceAndDeviceName(portid, logicalPortDTO.getPositionOnDevice(),
+                        logicalPortDTO.getDeviceName());
+                if (exPort == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Port id not found");
+                }
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPortIdAndPositionOnPortAndDeviceName(
+                        portid, logicalPortDTO.getPositionOnPort(), deviceName);
+                if (existingLogicalPort != null) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("Port position on position on port is already occupied");
+                }
+
+            } else if (type.equals("Pluggable")) {
+                Pluggable exPluggable = pluggableRepo.findPluggableByIdAndPositionOnDeviceAndDeviceName(plugableid,
+                        logicalPortDTO.getPositionOnDevice(), logicalPortDTO.getDeviceName());
+                if (exPluggable == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable not found");
+                }
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPlugableIdAndPositionOnPortAndDeviceName(
+                        plugableid, logicalPortDTO.getPositionOnPort(), deviceName
+                );
+                if (existingLogicalPort != null) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("Pluggable position on position on port is already occupied");
+                }
+            } else {
+                throw new IllegalArgumentException("Invalid type selected");
+            }
+
+            // Populate additional attributes if provided
+            if (logicalPortDTO.getAdditionalAttribute() != null && !logicalPortDTO.getAdditionalAttribute().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : logicalPortDTO.getAdditionalAttribute()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
+
+            // Call the repository method to insert the logical port
+            success = logicalPortRepo.insertLogicalPortOnCard(logicalPortDTO.getName(), 0,
+                    logicalPortDTO.getPositionOnDevice(), lptype, logicalPortDTO.getOperationalState(), logicalPortDTO.getAdministrativeState(),
+                    logicalPortDTO.getUsageState(), logicalPortDTO.getHref(), logicalPortDTO.getPortSpeed(),
+                    logicalPortDTO.getCapacity(), logicalPortDTO.getPositionOnPort(), logicalPortDTO.getManagementIp(),
+                    logicalPortDTO.getDeviceName(), orderid, plugableid, portid, 0, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]));
+
+            if (success == 1) {
+                return ResponseEntity.ok("Logical port created successfully");
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update Pluggable");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred: " + e.getMessage());
+        }
+    }
+
+
+    @GetMapping("/getLogicalPort")
+    public LogicalPort getLogicalPort(@RequestParam(name = "id") Long id) {
+        LogicalPort logicalPort = new LogicalPort();
+        try {
+            logicalPort = logicalPortRepo.findByLogicalportid(id);
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return logicalPort;
+    }
 
 
     @Autowired

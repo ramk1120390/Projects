@@ -4,14 +4,17 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 
 @Entity
-public class Port {    //if we are creating port on card need valid with card name and portname
+public class Port implements Serializable {    //if we are creating port on card need valid with card name and portname
     //pin port card name as cisco
     //pin port card name as  cisco need retict creation
     //if creating
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     private Long portid;
     private String portname;
     private Integer positionOnCard;

@@ -2,8 +2,10 @@ package com.Network.Network.DevicemetamodelPojo;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
-public class Card {
+public class Card implements Serializable {
     @Column(unique = true, nullable = false)
     private Long cardid;
 

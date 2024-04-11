@@ -1,5 +1,6 @@
 package com.Network.Network.DevicemetamodelPojo;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 import jakarta.persistence.Entity;
@@ -14,7 +15,7 @@ import lombok.Data;
 @Data
 @Entity
 @Table(name = "orders")
-public class Order {
+public class Order implements Serializable {
 	@Id 
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;

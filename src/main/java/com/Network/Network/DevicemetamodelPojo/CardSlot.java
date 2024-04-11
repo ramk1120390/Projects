@@ -2,8 +2,10 @@ package com.Network.Network.DevicemetamodelPojo;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
-public class CardSlot {
+public class CardSlot implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long cardslotid;

@@ -104,4 +104,25 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("success") Integer success
     );
 
+    @Query(value = "SELECT p.* " +
+            "FROM port p " +
+            "INNER JOIN card_slot cs ON p.cardlslotname = cs.name " +
+            "INNER JOIN card c ON c.cardid = cs.cardid " +
+            "WHERE c.devicename = :deviceName AND c.cardid = :cardId AND p.portid = :portId",
+            nativeQuery = true)
+    Port findByDeviceNameAndCardIdAndPortId(@Param("deviceName") String deviceName,
+                                            @Param("cardId") Long cardId,
+                                            @Param("portId") Long portId);
+
+    @Query(value = "SELECT * FROM port p WHERE p.position_on_card = :positionOnCard AND p.portid = :portId", nativeQuery = true)
+    Port findByPositionOnCardAndPortId(
+            @Param("positionOnCard") Integer positionOnCard,
+            @Param("portId") Long portId
+    );
+    @Query(value = "SELECT * FROM port WHERE portid = :portId AND position_on_device = :positionOnDevice AND devicename = :deviceName", nativeQuery = true)
+    Port findPortByPortIdAndPositionOnDeviceAndDeviceName(
+            @Param("portId") long portId,
+            @Param("positionOnDevice") int positionOnDevice,
+            @Param("deviceName") String deviceName
+    );
 }

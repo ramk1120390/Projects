@@ -2,10 +2,13 @@ package com.Network.Network.DevicemetamodelPojo;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
-public class Pluggable {
+public class Pluggable implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", insertable = false, updatable = false)
     private Long id;
     private String plugablename;
     private Integer positionOnCard;
@@ -28,7 +31,7 @@ public class Pluggable {
     @JoinColumn(name = "order_id", referencedColumnName = "id")
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "devicename", referencedColumnName = "devicename", nullable = true)
     private Device device;
 

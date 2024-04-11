@@ -1058,6 +1058,70 @@ BEGIN
 END;
 $$;
 ------------------- end------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE insert_logical_portoncard(
+    p_logicalportName VARCHAR,
+    p_positionOnCard INTEGER,
+    p_positionOnDevice INTEGER,
+    p_portType VARCHAR,
+    p_OperationalState VARCHAR,
+    p_AdministrativeState VARCHAR,
+    p_UsageState VARCHAR,
+    p_Href VARCHAR,
+    p_PortSpeed VARCHAR,
+    p_Capacity INTEGER,
+    p_PositionOnPort INTEGER,
+    p_ManagementIP VARCHAR,
+    p_DeviceName VARCHAR,
+    p_OrderId BIGINT, -- Changed to BIGINT
+    p_PlugableId BIGINT, -- Changed to BIGINT
+    p_PortId BIGINT,
+    inout success int,
+    keys VARCHAR[], 
+    p_values VARCHAR[]
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    d_logicalportid BIGINT;
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+BEGIN
+    -- Begin transaction
+    BEGIN
+        -- Insert data into logical_port table
+        INSERT INTO logical_port ("name",position_on_card,position_on_device,port_type,operational_state,administrative_state,usage_state,href,port_speed,
+        capacity,position_on_port,management_ip,devicename,order_id,plugableid,portid) 
+        VALUES (p_logicalportName,p_positionOnCard,p_positionOnDevice,p_portType,p_OperationalState,p_AdministrativeState,p_UsageState,p_Href,p_PortSpeed,
+        p_Capacity,p_PositionOnPort,p_ManagementIP,p_DeviceName,p_OrderId,p_PlugableId,p_PortId) RETURNING logicalportid INTO d_logicalportid;
+        
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+                
+                -- Insert into logical_port_additional_attribute table
+                INSERT INTO logical_port_additional_attribute (logical_port_id, additional_attribute_id) VALUES (d_logicalportid, inserted_id);
+            END LOOP;
+        END IF;
+        
+        -- Commit the transaction
+        SUCCESS := 1;
+       
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Rollback the transaction on error
+            SUCCESS := 0;
+            ROLLBACK;
+            RAISE;
+    END;
+END $$;
+
+------------------end------------------------------------------------------------------------------------
 
 
 

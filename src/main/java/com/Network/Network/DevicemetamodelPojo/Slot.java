@@ -3,9 +3,11 @@ package com.Network.Network.DevicemetamodelPojo;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.io.Serializable;
+
 @Entity
 @Data
-public class Slot {
+public class Slot implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
