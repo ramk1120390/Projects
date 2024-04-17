@@ -1,6 +1,8 @@
 package com.Network.Network.DevicemetamodelRepo;
 
 import com.Network.Network.DevicemetamodelPojo.Card;
+import com.Network.Network.DevicemetamodelPojo.CardSlot;
+import com.Network.Network.DevicemetamodelPojo.Pluggable;
 import com.Network.Network.DevicemetamodelPojo.Port;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +10,10 @@ import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
 
 public interface PortRepo extends JpaRepository<Port, Long> {
+    @Query(value = "SELECT * FROM port WHERE cardlslotname = :cardSlotName", nativeQuery = true)
+    Port findByCardSlotName(@Param("cardSlotName") String cardSlotName);
+
+
     @Query(value = "SELECT * FROM port WHERE portname = ?1 AND cardname = ?2", nativeQuery = true)
     Port findPortsByCardNameAndDeviceName(String portName, String cardName);
 
@@ -119,6 +125,7 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("positionOnCard") Integer positionOnCard,
             @Param("portId") Long portId
     );
+
     @Query(value = "SELECT * FROM port WHERE portid = :portId AND position_on_device = :positionOnDevice AND devicename = :deviceName", nativeQuery = true)
     Port findPortByPortIdAndPositionOnDeviceAndDeviceName(
             @Param("portId") long portId,

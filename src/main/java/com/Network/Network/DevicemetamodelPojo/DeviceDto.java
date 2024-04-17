@@ -221,8 +221,6 @@ public class DeviceDto {
 		this.realtion = realtion;
 	}
 
-	
-	
-	
-	
+	public DeviceDto() {
+	}
 }

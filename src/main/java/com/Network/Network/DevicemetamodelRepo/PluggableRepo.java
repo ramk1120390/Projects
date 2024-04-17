@@ -1,5 +1,6 @@
 package com.Network.Network.DevicemetamodelRepo;
 
+import com.Network.Network.DevicemetamodelPojo.CardSlot;
 import com.Network.Network.DevicemetamodelPojo.Pluggable;
 import com.Network.Network.DevicemetamodelPojo.Port;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
+    @Query(value = "SELECT * FROM pluggable WHERE cardlslotname = :cardSlotName", nativeQuery = true)
+    Pluggable findByCardSlotName(@Param("cardSlotName") String cardSlotName);
 
 
     @Query(value = "SELECT * FROM pluggable WHERE cardlslotname = ?1 AND position_on_card = ?2", nativeQuery = true)

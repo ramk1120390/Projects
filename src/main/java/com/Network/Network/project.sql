@@ -1122,6 +1122,65 @@ BEGIN
 END $$;
 
 ------------------end------------------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE CreatePhysicalConnection(
+    p_name VARCHAR,
+    p_devicea VARCHAR,
+    p_devicez VARCHAR,
+    p_deviceaport VARCHAR,
+    p_devicezport VARCHAR,
+    p_connectionType VARCHAR,
+    p_bandwidth INTEGER,
+    p_portnamea VARCHAR,
+    p_portnameb VARCHAR,
+    keys VARCHAR[], 
+    p_values VARCHAR[],
+    inout success int
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    d_physicalconnection_id BIGINT;
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+BEGIN
+    -- Begin transaction
+    BEGIN
+        -- Insert data into physical_connection table
+        INSERT INTO physical_connection (name, devicea, deviceb, deviceaport, devicezport, connection_type, bandwidth, portnamea, portnameb) 
+        VALUES (p_name, p_devicea, p_devicez, p_deviceaport, p_devicezport, p_connectionType, p_bandwidth, p_portnamea, p_portnameb) 
+        RETURNING physicalconnection_id INTO d_physicalconnection_id;
+        
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+                
+                -- Insert into physicalconnection_additional_attribute table
+                INSERT INTO physicalconnection_additional_attribute (physicalconnection_id, additional_attribute_id) 
+                VALUES (d_physicalconnection_id, inserted_id);
+            END LOOP;
+        END IF;
+        
+        -- Commit the transaction
+        SUCCESS := 1;
+       
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Rollback the transaction on error
+            SUCCESS := 0;
+            ROLLBACK;
+            RAISE;
+    END;
+END $$;
+
+------------------end------------------------------------------------------------------------------------
+
+
 
 
 

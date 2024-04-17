@@ -26,6 +26,7 @@ public class Order implements Serializable {
 	private LocalDate updatedDate;
 	private LocalDate createdDate;
 	private String previousStatus;
+	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "customername", referencedColumnName = "customername")
 	private Customer customer;

@@ -161,6 +161,7 @@ public class DeviceApi {
                     if (newShelvesContained != oldShelvesContained) {
                         throw new RuntimeException("Shelf position must match with available shelf positions for the device model");
                     }
+                    //TODO if possible change Same position need check allowed card list also if card under device
                 }
             }
             int success = deviceRepo.updateDevice(administrativeState, credentials, customer, deviceModel,
@@ -472,6 +473,8 @@ public class DeviceApi {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request");
         }
     }
+//TODO if card name changed in card update need find with card id and update
+    //and if card  inside cardslot name is changes associated plugable also need change
 
     @PostMapping("/CreatePluggableOnCard")
     public ResponseEntity<String> CreatePluggableOnCard(@RequestParam("cardid") Long cardid,
@@ -1046,10 +1049,11 @@ public class DeviceApi {
 
 
     @GetMapping("/getLogicalPort")
-    public LogicalPort getLogicalPort(@RequestParam(name = "id") Long id) {
-        LogicalPort logicalPort = new LogicalPort();
+    public Pluggable getLogicalPort(@RequestParam(name = "devicename") String devicename,
+                                    @RequestParam(name = "position_on_device") int position) {
+        Pluggable logicalPort = new Pluggable();
         try {
-            logicalPort = logicalPortRepo.findByLogicalportid(id);
+            logicalPort = pluggableRepo.findByDeviceNameAndPositionOnDevice(devicename, position);
         } catch (Exception e) {
             e.printStackTrace();
             appExceptionHandler.raiseException(e.getMessage());
