@@ -82,6 +82,18 @@ public interface LogicalPortRepo extends JpaRepository<LogicalPort, Long> {
             @Param("logicalPortName") String logicalPortName
     );
 
+    @Query(value = "SELECT * FROM logical_port lp WHERE lp.devicename = :deviceName AND " +
+            "lp.position_on_device = :positionOnDevice AND " +
+            "lp.position_on_port = :positionOnPort", nativeQuery = true)
+    LogicalPort findByDeviceNameAndPosition(@Param("deviceName") String deviceName,
+                                            @Param("positionOnDevice") int positionOnDevice,
+                                            @Param("positionOnPort") int positionOnPort);
+    @Query(value = "SELECT * FROM logical_port lp WHERE lp.devicename = :deviceName AND" +
+            " lp.position_on_card = :positionOnCard AND lp.position_on_port = :positionOnPort", nativeQuery = true)
+    LogicalPort findBylogicalPort(@Param("deviceName") String deviceName,
+                                                  @Param("positionOnCard") int positionOnCard,
+                                                  @Param("positionOnPort") int positionOnPort);
+
     //TODO future add card name validate composite plugable name
     //if maintain unique both plugable and lp have same realtion name
 

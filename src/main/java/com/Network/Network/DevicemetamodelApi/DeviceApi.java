@@ -998,6 +998,7 @@ public class DeviceApi {
                 if (exPort == null) {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Port id not found");
                 }
+                //Todo Change logical port position based one Device no neeed check port id
                 existingLogicalPort = logicalPortRepo.findLogicalPortByPortIdAndPositionOnPortAndDeviceName(
                         portid, logicalPortDTO.getPositionOnPort(), deviceName);
                 if (existingLogicalPort != null) {

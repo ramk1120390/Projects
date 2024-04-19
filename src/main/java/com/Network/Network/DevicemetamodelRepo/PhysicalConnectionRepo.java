@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface PhysicalConnectionRepo extends JpaRepository<PhysicalConnection, Long> {
     PhysicalConnection findByName(String name);
+
     @Query(value = "CALL CreatePhysicalConnection(:p_name, :p_devicea, :p_devicez, :p_deviceaport, :p_devicezport, :p_connectionType, :p_bandwidth, :p_portnamea, :p_portnameb, :keys, :p_values, :success)", nativeQuery = true)
     int createPhysicalConnection(
             @Param("p_name") String p_name,
@@ -22,4 +23,7 @@ public interface PhysicalConnectionRepo extends JpaRepository<PhysicalConnection
             @Param("p_values") String[] p_values,
             @Param("success") Integer success
     );
+
+    @Query(value = "SELECT CONCAT(pc.devicea, ',', pc.deviceb) FROM physical_connection pc WHERE pc.name = :name", nativeQuery = true)
+    String findConcatenatedDevicesByName(@Param("name") String name);
 }
