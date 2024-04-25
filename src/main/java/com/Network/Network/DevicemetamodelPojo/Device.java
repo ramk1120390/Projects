@@ -54,7 +54,8 @@ public class Device implements Serializable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "order_id", referencedColumnName = "id")
 	private Order order;
-	
+
+
 	@Column
 	private String realtion;
 	

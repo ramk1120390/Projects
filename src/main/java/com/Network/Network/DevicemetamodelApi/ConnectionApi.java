@@ -361,15 +361,14 @@ public class ConnectionApi {
                     logicalConnection.getDeviceZLogicalPort(),
                     logicalConnection.getConnectionType(),
                     logicalConnection.getBandwidth(),
-                    deviceNames.toArray(new String[0]), // Convert Set<String> to String[]
-                    physicalConnections.toArray(new String[0]), // Convert Set<String> to String[]
+                    deviceNames.toArray(new String[0]),
+                    physicalConnections.toArray(new String[0]),
                     logicalPortA.getName(),
                     logicalPortZ.getName(),
-                    A_A_K.toArray(new String[0]), // Convert Set<String> to String[]
-                    A_A_V.toArray(new String[0]), // Convert Set<String> to String[]
+                    A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]),
                     0 // Assuming this is the default value for success
             );
-
             response.put("response", success);
             response.put("A-PortName", logicalPortA.getName());
             response.put("zEndPortName", logicalPortZ.getName());
@@ -383,4 +382,7 @@ public class ConnectionApi {
         }
     }
 }
+
+//TODO update PhysicalConnection Logical Connection
+
 

@@ -1239,7 +1239,14 @@ BEGIN
 END $$;
 
 --------------end------------------------------------------------------------------------------------
-
+SELECT * FROM logical_connection
+WHERE EXISTS (
+    SELECT 1
+    FROM unnest(physical_connections) AS pc
+    WHERE pc::text LIKE 't%'
+);
+(Array serach code)
+---------------end------------------------------------------------------------------------------------
 
 
 

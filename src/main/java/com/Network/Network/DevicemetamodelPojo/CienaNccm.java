@@ -2,16 +2,16 @@ package com.Network.Network.DevicemetamodelPojo;
 
 import java.util.ArrayList;
 
-public class CienaNcm {
+public class CienaNccm {
     private CienaInterface cienaInterface;
     private ArrayList<CienaPort> cienaPorts;
 
-    public CienaNcm() {
-    }
-
-    public CienaNcm(CienaInterface cienaInterface, ArrayList<CienaPort> cienaPorts) {
+    public CienaNccm(CienaInterface cienaInterface, ArrayList<CienaPort> cienaPorts) {
         this.cienaInterface = cienaInterface;
         this.cienaPorts = cienaPorts;
+    }
+
+    public CienaNccm() {
     }
 
     public CienaInterface getCienaInterface() {
