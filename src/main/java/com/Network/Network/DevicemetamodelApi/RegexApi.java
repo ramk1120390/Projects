@@ -158,4 +158,21 @@ public class RegexApi {
 
         return resultNode;
     }
+
+    @PostMapping("/interfaces1")
+    public JsonNode parseTelcoInterface(@RequestBody JsonNode config) {
+        ObjectNode resultNode = objectMapper.createObjectNode();
+
+        try {
+            String jsonString = config.toString();
+            jsonString = jsonString.replaceAll("\\\\n", "\n");
+            jsonString = jsonString.trim();
+            ObjectNode swInterfaceNode = objectMapper.createObjectNode();
+
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return config;
+    }
 }
