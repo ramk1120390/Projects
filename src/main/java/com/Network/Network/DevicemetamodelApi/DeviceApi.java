@@ -1089,6 +1089,11 @@ public class DeviceApi {
         String jsonString = jdbcTemplate.queryForObject(query, new Object[]{tableName, columnName, searchTerm, filterType}, String.class);
         return objectMapper.readTree(jsonString);
     }
+
+    private List<Integer> AvilableShef(@RequestParam("Name") String Name) {
+
+        return null;
+    }
 }
 
 
