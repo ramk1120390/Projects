@@ -3,17 +3,17 @@ package com.Network.Network.DevicemetamodelApi;
 import java.util.ArrayList;
 
 public class AdranInterface {
-    private ArrayList<Ethernet> ethernetList;
+    private ArrayList<Ethernets> ethernetList;
     private ArrayList<GigabitEthernet> gigabitEthernets;
     private ArrayList<T1> t1ArrayList;
     private ArrayList<Fx> fxArrayList;
     private ArrayList<Pri> priArrayList;
 
-    public ArrayList<Ethernet> getEthernetList() {
+    public ArrayList<Ethernets> getEthernetList() {
         return ethernetList;
     }
 
-    public void setEthernetList(ArrayList<Ethernet> ethernetList) {
+    public void setEthernetList(ArrayList<Ethernets> ethernetList) {
         this.ethernetList = ethernetList;
     }
 

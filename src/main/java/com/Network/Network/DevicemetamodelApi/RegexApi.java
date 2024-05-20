@@ -166,7 +166,7 @@ public class RegexApi {
         try {
             String jsonString = config.toString();
             jsonString = jsonString.replaceAll("\\\\n", "\n").trim();
-            ArrayList<Ethernet> ethernetList = new ArrayList<>();
+            ArrayList<Ethernets> ethernetList = new ArrayList<>();
             ArrayList<GigabitEthernet> gigabitEthernetList = new ArrayList<>();
             ArrayList<T1> t1List = new ArrayList<>();
             ArrayList<Fx> fxsList = new ArrayList<>();
@@ -188,7 +188,7 @@ public class RegexApi {
             GigabitEthernet gigabitEthernet = new GigabitEthernet();
 
             while (ethernetMatcher.find()) {
-                Ethernet ethernet = new Ethernet();
+                Ethernets ethernet = new Ethernets();
                 String interfaceName = "interface eth " + ethernetMatcher.group(1);
                 String interfaceConfig = ethernetMatcher.group(0);
                 String description = "No Description";
@@ -221,8 +221,6 @@ public class RegexApi {
                 ethernet.setStatus(Status);
                 ethernetList.add(ethernet);
             }
-
-
             while (GigabitethernetMatcher.find()) {
                 String interfaceName = GigabitethernetMatcher.group(1); // Retrieves the complete interface name
                 String interfaceConfig = GigabitethernetMatcher.group(0);
@@ -246,8 +244,6 @@ public class RegexApi {
                 gigabitEthernet.setStatus(Status);
                 gigabitEthernet.setMediagateway(mediaGateway);
                 gigabitEthernetList.add(gigabitEthernet);
-                //System.out.println(gigabitEthernet.toString());
-                //System.out.println("--------");
             }
 
             while (T1Matcher.find()) {
@@ -267,7 +263,6 @@ public class RegexApi {
                 t1.setDesc(description);
                 t1.setStatus(Status);
                 t1List.add(t1);
-                //System.out.println(t1.toString());
             }
 
             while (priMatcher.find()) {
@@ -288,20 +283,16 @@ public class RegexApi {
                 pri.setDesc(description);
                 pri.setStatus(status);
                 priList.add(pri);
-               // System.out.println(pri.toString());
             }
 
             while (fxsMatcher.find()){
-                String interfaceName = "interface fxs " + fxsMatcher.group(1); // Retrieves the complete interface name
+                String interfaceName = "interface fxs " + fxsMatcher.group(1);
                 String interfaceConfig = fxsMatcher.group(0);
                 Boolean Status = interfaceConfig.contains("no shutdown");
                 Fx fx=new Fx();
                 fx.setName(interfaceName);
                 fx.setStatus(Status);
-               // System.out.println(interfaceName);
-               // System.out.println(Status);
                 fxsList.add(fx);
-              //  System.out.println("--------------------");
 
             }
             adranInterface.setEthernetList(ethernetList);

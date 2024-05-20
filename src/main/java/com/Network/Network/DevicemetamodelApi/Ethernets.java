@@ -1,16 +1,16 @@
 package com.Network.Network.DevicemetamodelApi;
 
-public class Ethernet {
+public class Ethernets {
     private String name;
     private String desc;
     private String ipaddress;
     private String mediagateway;
     private Boolean status;
 
-    public Ethernet() {
+    public Ethernets() {
     }
 
-    public Ethernet(String name, String desc, String ipaddress, String mediagateway, Boolean status) {
+    public Ethernets(String name, String desc, String ipaddress, String mediagateway, Boolean status) {
         this.name = name;
         this.desc = desc;
         this.ipaddress = ipaddress;
