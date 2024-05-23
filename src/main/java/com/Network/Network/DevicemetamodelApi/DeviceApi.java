@@ -9,6 +9,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityNotFoundException;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -694,6 +696,7 @@ public class DeviceApi {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request: " + e.getMessage());
         }
     }
+    //Name suppose not enter autmatice Genarate using slot card and after Name need To Sepfic position based in insertion append
 
     @PostMapping("/updatePluggablebyid")
     public ResponseEntity<String> updatePluggablebyid(@RequestParam("plugableid") Long plugableid,
@@ -1090,10 +1093,12 @@ public class DeviceApi {
         return objectMapper.readTree(jsonString);
     }
 
+
     private List<Integer> AvilableShef(@RequestParam("Name") String Name) {
 
         return null;
     }
+
 }
 
 

@@ -27,10 +27,13 @@ public class Default {
 
         // Accessing Price and getDetails through the implemented instance
         Integer price = card.Price();
+        String count=card.Cardcount();
         String details = Card.getDetails();
+
 
         System.out.println(card.brand("Bmw"));
         System.out.println("Price: " + price);
         System.out.println("Details: " + details);
+        System.out.println("Count: " + count);
     }
 }

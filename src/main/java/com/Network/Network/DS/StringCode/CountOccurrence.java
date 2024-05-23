@@ -14,8 +14,8 @@ public class CountOccurrence {
             count.put(c, count.getOrDefault(c, 0) + 1);
             //System.out.println(count);
         }
-
         System.out.println(count);
+
     }
 }
 

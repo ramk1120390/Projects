@@ -16,8 +16,7 @@ public class LinkedList {
     LinkedList() {
         head = null;
     }
-//[null] 1-> new.node.next=1 head =null
-    //temp=null 1,2,3....
+
     public void InsertBegin(int data) {
         Node newnode = new Node(data);
         newnode.next = head;
@@ -83,6 +82,18 @@ public class LinkedList {
             temp = temp.next;
         }
         System.out.println();
+    }
+    public void reverse() {
+        Node previous = null;
+        Node current = head;
+        Node next = null;
+        while (current != null) {
+            next = current.next;  // Store the next node
+            current.next = previous;  // Reverse the current node's pointer
+            previous = current;  // Move pointers one position ahead
+            current = next;
+        }
+        head = previous;  // Reset the head to the new front of the list
     }
 
     public static void main(String[] args) {
