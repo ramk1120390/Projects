@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface PortRepo extends JpaRepository<Port, Long> {
     @Query(value = "SELECT * FROM port WHERE cardlslotname = :cardSlotName", nativeQuery = true)
     Port findByCardSlotName(@Param("cardSlotName") String cardSlotName);
@@ -132,4 +134,10 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("positionOnDevice") int positionOnDevice,
             @Param("deviceName") String deviceName
     );
+
+    @Query("SELECT p FROM Device d INNER JOIN d.ports p WHERE p.devicename = :deviceName " +
+            "UNION " +
+            "SELECT p2 FROM CardSlot cs INNER JOIN cs.ports p2 WHERE p2.cardlslotname IN :cardSlotNames")
+    List<Port> findPortsByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
+                                                     @Param("cardSlotNames") List<String> cardSlotNames);
 }

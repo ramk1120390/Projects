@@ -2,6 +2,7 @@ package com.Network.Network.DevicemetamodelApi;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.Network.Network.DevicemetamodelPojo.*;
 import com.Network.Network.DevicemetamodelRepo.*;
@@ -45,6 +46,8 @@ public class DeviceApi {
     private PortRepo portRepo;
     @Autowired
     private PluggableRepo pluggableRepo;
+    @Autowired
+    private CarslotRepo carslotRepo;
 
 
     @PostMapping("/insertDevice")
@@ -1099,8 +1102,428 @@ public class DeviceApi {
         return null;
     }
 
-}
+    @GetMapping("/getDeviceByName")
+    public Device getDeviceByName(@RequestParam("DeviceName") String name) {
+        Device response = new Device();
+        try {
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(name.toLowerCase()))
+                    .findFirst();
+            if (deviceOptional.isPresent()) {
+                response = deviceOptional.get();
+            } else {
+                appExceptionHandler.raiseException("Given Device Not Found" + name);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
 
+    @GetMapping("/getDevicesInBuilding")
+    public List<Device> getDevicesInBuilding(@RequestParam("BuildingName") String name) {
+        List<Device> response = new ArrayList<>();
+        try {
+            Building building = buildingRepo.findByBuildingName(name.toLowerCase());
+            if (building == null) {
+                appExceptionHandler.raiseException("Given Building is not found: " + name);
+            }
+            response = deviceRepo.findAll().stream()
+                    .filter(device -> device.getBuilding().getBuildingName().equalsIgnoreCase(name))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCard")
+    public List<Card> getCard(@RequestParam(name = "cardName") String name) {
+        List<Card> response = new ArrayList<>();
+        try {
+            response = cardRepo.findAll().stream().filter(card -> card.getId().getCardname().
+                            equalsIgnoreCase(name.toLowerCase())).
+                    collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getAllCardsOnDevice")
+    public List<Card> getAllCardsOnDevice(@RequestParam(name = "DeviceName") String name) {
+        List<Card> response = new ArrayList<>();
+        try {
+            response = cardRepo.findAll().stream().filter(card -> card.getId().getDevice().getDevicename().
+                    equalsIgnoreCase(name.toLowerCase())).collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCardInDevice")
+    public Card getCardInDevice(@RequestParam("cardName") String cardName, @RequestParam("DeviceName") String deviceName) {
+        Card response = new Card();
+        try {
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(deviceName.toLowerCase()))
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + deviceName);
+            }
+            Optional<Card> cardOptional = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equalsIgnoreCase(cardName.toLowerCase()) &&
+                            card.getId().getDevice().getDevicename().equalsIgnoreCase(deviceName.toLowerCase()))
+                    .findFirst();
+            if (!cardOptional.isPresent()) {
+                appExceptionHandler.raiseException("Card not found: " + cardName + " in device: " + deviceName);
+            }
+            response = cardOptional.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getShelfByName")
+    public Shelf getShelfByName(@RequestParam("ShelfName") String name) {
+        Shelf response = new Shelf();
+        try {
+
+            Optional<Shelf> shelfOptional = shelfRepo.findAll().stream()
+                    .filter(shelf -> shelf.getName().equals(name.toLowerCase()))
+                    .findFirst();
+            if (shelfOptional.isPresent()) {
+                response = shelfOptional.get();
+            } else {
+                appExceptionHandler.raiseException("Given Shelf Not Found" + name);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getShelfSOnDevice")
+    public List<Shelf> getShelfSOnDevice(@RequestParam(name = "DeviceName") String DeviceName) {
+        List<Shelf> response = new ArrayList<>();
+        try {
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            response = shelfRepo.findAll().stream().filter(shelf -> shelf.getDevice().getDevicename()
+                    .equals(DeviceName.toLowerCase())).collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getSlotSOnShelf")
+    public List<Slot> getSlotSOnShelf(@RequestParam(name = "ShelfName") String ShelfName) {
+        List<Slot> response = new ArrayList<>();
+        try {
+            Optional<Shelf> shelfOptional = shelfRepo.findAll().stream()
+                    .filter(shelf -> shelf.getName().equals(ShelfName.toLowerCase()))
+                    .findFirst();
+            if (!shelfOptional.isPresent()) {
+                appExceptionHandler.raiseException("Shelf not found: " + ShelfName.toLowerCase());
+            }
+            response = slotRepo.findAll().stream().filter(shelf -> shelf.getShelf().getName()
+                    .equals(ShelfName.toLowerCase())).collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCardSlotSOnCardId")
+    public List<CardSlot> getCardSlotSOnCardId(@RequestParam(name = "CardName") String cardName,
+                                               @RequestParam(name = "DeviceName") String deviceName) {
+        List<CardSlot> response = new ArrayList<>();
+        try {
+            Optional<Card> cardOptional = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(cardName.toLowerCase()))
+                    .findFirst();
+            if (!cardOptional.isPresent()) {
+                appExceptionHandler.raiseException("Card not found: " + cardName.toLowerCase());
+            }
+            List<Long> cardIds = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(cardName.toLowerCase())
+                            && card.getId().getDevice().getDevicename().equals(deviceName.toLowerCase()))
+                    .map(Card::getCardid)
+                    .collect(Collectors.toList());
+
+            if (cardIds.isEmpty()) {
+                appExceptionHandler.raiseException("Given card with Device not found: " +
+                        cardName.toLowerCase() + deviceName.toLowerCase());
+            }
+            response = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> cardIds.contains(cardSlot.getCard().getCardid()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCardSlotSOnCard")
+    public List<CardSlot> getCardSlotSOnCard(@RequestParam(name = "CardName") String cardName) {
+        List<CardSlot> response = new ArrayList<>();
+        try {
+            Optional<Card> cardOptional = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(cardName.toLowerCase()))
+                    .findFirst();
+            if (!cardOptional.isPresent()) {
+                appExceptionHandler.raiseException("Card not found: " + cardName.toLowerCase());
+            }
+            response = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> cardSlot.getCardname().equals(cardName.toLowerCase()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCardsOnSlots")
+    public List<Card> getCardsOnSlots(@RequestParam(name = "SlotName") String SlotName) {
+        List<Card> response = new ArrayList<>();
+        try {
+            Optional<Slot> SlotOptional = slotRepo.findAll().stream()
+                    .filter(slot -> slot.getSlotname().equals(SlotName.toLowerCase()))
+                    .findFirst();
+            if (!SlotOptional.isPresent()) {
+                appExceptionHandler.raiseException("SlotName not found: " + SlotName.toLowerCase());
+            }
+            response = cardRepo.findAll().stream()
+                    .filter(card -> card.getSlot().getSlotname().equals(SlotName.toLowerCase()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPortsByName")
+    public List<Port> getPortsByName(@RequestParam("PortName") String PortName) {
+        List<Port> response = new ArrayList<>();
+        try {
+            response = portRepo.findAll().stream()
+                    .filter(port -> port.getPortname().equals(PortName.toLowerCase()))
+                    .collect(Collectors.toList());
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Port Name Not Found" + PortName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPluggableByName")
+    public List<Pluggable> getPluggableByName(@RequestParam("PluggableName") String PluggableName) {
+        List<Pluggable> response = new ArrayList<>();
+        try {
+            response = pluggableRepo.findAll().stream()
+                    .filter(pluggable -> pluggable.getPlugablename().equals
+                            (PluggableName.toLowerCase()))
+                    .collect(Collectors.toList());
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Pluggable Name Not Found" + PluggableName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPortsByDeviceName")
+    public List<Port> getPortsByDeviceName(@RequestParam("DeviceName") String DeviceName,
+                                           @RequestParam("CardName") String CardName) {
+        List<Port> response = new ArrayList<>();
+        try {
+            List<Card> cards = cardRepo.findAll();
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            Optional<Card> cardOptional = cards.stream()
+                    .filter(card -> card.getId().getCardname().equals(CardName.toLowerCase()))
+                    .findFirst();
+            if (!cardOptional.isPresent()) {
+                appExceptionHandler.raiseException("Card not found: " + CardName.toLowerCase());
+            }
+            List<Long> CardID = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(CardName.toLowerCase()
+                    ) && (card.getId().getDevice().getDevicename().equals(DeviceName.toLowerCase())))
+                    .map(Card::getCardid).collect(Collectors.toList());
+
+            List<String> cardSlotNames = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> CardID.contains(cardSlot.getCard().getCardid()))
+                    .map(CardSlot::getName)
+                    .collect(Collectors.toList());
+            response = portRepo.findPortsByDeviceNameAndCardSlotNames(DeviceName.toLowerCase(), cardSlotNames);
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Device and Card Have No Port Found: " +
+                        DeviceName.toLowerCase() + " " + CardName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPluggablesByDeviceName")
+    public List<Pluggable> getPluggablesByDeviceName(@RequestParam("DeviceName") String DeviceName,
+                                                     @RequestParam("CardName") String CardName) {
+        List<Pluggable> response = new ArrayList<>();
+        try {
+            List<Card> cards = cardRepo.findAll();
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            Optional<Card> cardOptional = cards.stream()
+                    .filter(card -> card.getId().getCardname().equals(CardName.toLowerCase()))
+                    .findFirst();
+            if (!cards.isEmpty()) {
+                appExceptionHandler.raiseException("Card not found: " + CardName.toLowerCase());
+            }
+            List<Long> CardID = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(CardName.toLowerCase()
+                    ) && (card.getId().getDevice().getDevicename().equals(DeviceName.toLowerCase())))
+                    .map(Card::getCardid).collect(Collectors.toList());
+
+            List<String> cardSlotNames = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> CardID.contains(cardSlot.getCard().getCardid()))
+                    .map(CardSlot::getName)
+                    .collect(Collectors.toList());
+            response = pluggableRepo.findPluggablesByDeviceNameAndCardSlotNames(DeviceName.toLowerCase(), cardSlotNames);
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Device and Card Have No Pluggable Found: " +
+                        DeviceName.toLowerCase() + " " + CardName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPortOnCardSlot")
+    public Port getPortOnCardSlot(@RequestParam("CardSlotName") String CardSlotName) {
+        Port response = new Port();
+        try {
+            Optional<Port> PortOptional = portRepo.findAll().stream()
+                    .filter(port -> port.getCardSlot().getName().equals(CardSlotName.toLowerCase()))
+                    .findFirst();
+            if (!PortOptional.isPresent()) {
+                appExceptionHandler.raiseException("Given CardSlot has no Port found: " + CardSlotName.toLowerCase());
+            }
+            response = PortOptional.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getPluggableOnCardSlot")
+    public Pluggable getPluggableOnCardSlot(@RequestParam("CardSlotName") String CardSlotName) {
+        Pluggable response = new Pluggable();
+        try {
+            Optional<Pluggable> PluggableOptional = pluggableRepo.findAll().stream()
+                    .filter(pluggable -> pluggable.getCardSlot().getName().equals(CardSlotName.toLowerCase()))
+                    .findFirst();
+            if (!PluggableOptional.isPresent()) {
+                appExceptionHandler.raiseException("Given CardSlot has no Pluggable found: " +
+                        CardSlotName.toLowerCase());
+            }
+            response = PluggableOptional.get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getAllPortsOnCard")
+    public List<Port> getAllPortsOnCard(@RequestParam("CardName") String CardName) {
+        List<Port> response = new ArrayList<>();
+        try {
+            response = portRepo.findAll().stream()
+                    .filter(port -> port.getCardname().equals(CardName.toLowerCase()))
+                    .collect(Collectors.toList());
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Card Have No Port Found" + CardName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getAllPluggablesOnCard")
+    public List<Pluggable> getAllPluggablesOnCard(@RequestParam("CardName") String CardName) {
+        List<Pluggable> response = new ArrayList<>();
+        try {
+            response = pluggableRepo.findAll().stream()
+                    .filter(pluggable -> pluggable.getCardname().equals(CardName.toLowerCase()))
+                    .collect(Collectors.toList());
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("Given Card Have No Pluggable Found" + CardName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getAvailableShelvesOnDevice")
+    public List<Integer> getAvailableShelvesOnDevice(@RequestParam(name = "DeviceName") String DeviceName) {
+        List<Integer> response = new ArrayList<>();
+        try {
+            Optional<Device> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            response = shelfRepo.findAll().stream().filter(shelf -> shelf.getDevice().getDevicename()
+                    .equals(DeviceName.toLowerCase())).map(Shelf::getShelfPosition).collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+}
 
 //TODO delete device and delete shelf need todo
 //TODO shelf to slot need to create card
