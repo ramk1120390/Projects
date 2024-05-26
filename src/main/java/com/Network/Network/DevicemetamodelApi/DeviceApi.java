@@ -1523,6 +1523,85 @@ public class DeviceApi {
         return response;
     }
 
+    @GetMapping("/findLogicalPortByName")
+    public List<LogicalPort> findLogicalPortByName(@RequestParam(name = "LogicalPortName") String LogicalPortName) {
+        List<LogicalPort> response = new ArrayList<>();
+        try {
+            response = logicalPortRepo.findAll().stream()
+                    .filter(logicalPort -> logicalPort.getName().equals(LogicalPortName.toLowerCase()))
+                    .collect(Collectors.toList());
+            if (response.isEmpty()) {
+                appExceptionHandler.raiseException("LogicalPortName not found: " + LogicalPortName.toLowerCase());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/getCardModelsForDevice")
+    public List<String> getCardModelsForDevice(@RequestParam(name = "DeviceName") String DeviceName) {
+        List<String> response = new ArrayList<>();
+        try {
+            Optional<String> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .map(Device::getDeviceModel)
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            String metamodelName = deviceOptional.get();
+            response = deviceMetaModelRepo.findAll().stream().filter
+                    (deviceMetaModel -> deviceMetaModel.getDeviceModel().equals(metamodelName)).map(
+                    DeviceMetaModel::getDeviceModel).collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/findLogicalPortsOnCardRelation")
+    public List<LogicalPort> findLogicalPortsOnCardRelation(@RequestParam(name = "Device") String DeviceName) {
+        List<LogicalPort> response = new ArrayList<>();
+        try {
+            Optional<String> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .map(Device::getDevicename)
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            response = logicalPortRepo.findAll().stream().filter(logicalPort -> logicalPort.getPositionOnCard() != 0)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
+    @GetMapping("/findLogicalPortsOnDeviceRelation")
+    public List<LogicalPort> findLogicalPortsOnDeviceRelation(@RequestParam(name = "Device") String DeviceName) {
+        List<LogicalPort> response = new ArrayList<>();
+        try {
+            Optional<String> deviceOptional = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .map(Device::getDevicename)
+                    .findFirst();
+            if (!deviceOptional.isPresent()) {
+                appExceptionHandler.raiseException("Device not found: " + DeviceName.toLowerCase());
+            }
+            response = logicalPortRepo.findAll().stream().filter(logicalPort -> logicalPort.getPositionOnCard() == 0)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return response;
+    }
+
 }
 
 //TODO delete device and delete shelf need todo
