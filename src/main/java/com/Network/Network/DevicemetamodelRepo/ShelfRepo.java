@@ -9,6 +9,6 @@ import java.util.List;
 
 public interface ShelfRepo extends JpaRepository<Shelf,Long> {
     Shelf findShelfByName(String name);
-    @Query("SELECT s FROM Shelf s LEFT JOIN s.slots s2 WHERE s2.shelfname IS NULL AND s.devicename = :devicename")
+    @Query(value = "SELECT s.* FROM shelf s LEFT JOIN slot s2 ON s.name = s2.shelfname WHERE s2.shelfname IS NULL AND s.devicename = :devicename", nativeQuery = true)
     List<Shelf> findAvailableShelvesInDevice(@Param("devicename") String devicename);
 }

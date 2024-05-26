@@ -135,9 +135,9 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("deviceName") String deviceName
     );
 
-    @Query("SELECT p FROM Device d INNER JOIN d.ports p WHERE p.devicename = :deviceName " +
+    @Query(value = "SELECT p FROM Device d INNER JOIN d.ports p WHERE p.devicename = :deviceName " +
             "UNION " +
-            "SELECT p2 FROM CardSlot cs INNER JOIN cs.ports p2 WHERE p2.cardlslotname IN :cardSlotNames")
+            "SELECT p2 FROM CardSlot cs INNER JOIN cs.ports p2 WHERE p2.cardlslotname IN :cardSlotNames",nativeQuery = true)
     List<Port> findPortsByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
                                                      @Param("cardSlotNames") List<String> cardSlotNames);
 }

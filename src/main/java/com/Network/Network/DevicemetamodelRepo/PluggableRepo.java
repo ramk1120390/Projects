@@ -139,9 +139,9 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             @Param("deviceName") String deviceName
     );
 
-    @Query("SELECT p FROM Device d INNER JOIN d.pluggables p WHERE p.devicename = :deviceName " +
+    @Query(value = "SELECT p FROM Device d INNER JOIN d.pluggables p WHERE p.devicename = :deviceName " +
             "UNION " +
-            "SELECT p2 FROM CardSlot cs INNER JOIN cs.pluggables p2 WHERE p2.cardlslotname IN :cardSlotNames")
+            "SELECT p2 FROM CardSlot cs INNER JOIN cs.pluggables p2 WHERE p2.cardlslotname IN :cardSlotNames",nativeQuery = true)
     List<Pluggable> findPluggablesByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
                                                                @Param("cardSlotNames") List<String> cardSlotNames);
 
