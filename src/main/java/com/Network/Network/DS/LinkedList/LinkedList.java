@@ -18,9 +18,9 @@ public class LinkedList {
     }
 
     public void InsertBegin(int data) {
-        Node newnode = new Node(data);
-        newnode.next = head;
-        head = newnode;
+        Node node = new Node(data);
+        node.next = head;
+        head = node;
     }
 
     public void InsertEnd(int data) {

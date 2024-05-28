@@ -19,4 +19,9 @@ public interface BuildingRepo extends JpaRepository<Building, Long> {
 	@Modifying
 	@Query(value = "DELETE FROM building WHERE building_name = :buildingName", nativeQuery = true)
 	void deleteBybuildingByName(@Param("buildingName") String buildingName);
+
+	@Query(value = "SELECT d.building_name FROM device d WHERE d.building_name = :buildingName " +
+			"UNION " +
+			"SELECT r.building_name FROM rack r WHERE r.building_name = :buildingName", nativeQuery = true)
+	List<String> findBuildingNames(@Param("buildingName") String buildingName);
 }

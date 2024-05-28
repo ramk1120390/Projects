@@ -7,7 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
+import com.Network.Network.DevicemetamodelPojo.*;
+import com.Network.Network.DevicemetamodelRepo.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,14 +28,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.Network.Network.DevicemetamodelPojo.CardModels;
-import com.Network.Network.DevicemetamodelPojo.DeviceMetaModel;
-import com.Network.Network.DevicemetamodelPojo.DeviceModel;
-import com.Network.Network.DevicemetamodelPojo.Vendors;
-import com.Network.Network.DevicemetamodelRepo.CardModelRepo;
-import com.Network.Network.DevicemetamodelRepo.DeviceMetaModelRepo;
-import com.Network.Network.DevicemetamodelRepo.DeviceModelRepo;
-import com.Network.Network.DevicemetamodelRepo.VendorRepo;
 import com.Network.Network.Exception.AppExceptionHandler;
 
 import jakarta.transaction.Transactional;
@@ -152,23 +147,30 @@ public class DeviceMetaModelApi {
         return existingDeviceModel;
     }
 
+    @Autowired
+    DeviceRepo deviceRepo;
+
     @DeleteMapping("/deleteDeviceMetaModel")
     @Transactional
     public ResponseEntity<Map<String, Object>> deleteDeviceMetaModel(@RequestParam(name = "deviceModel") String deviceModel) {
-        deviceModel = deviceModel.toLowerCase();
         Map<String, Object> response = new HashMap<>();
         HttpStatus status = HttpStatus.OK; // Default status is OK
-
         try {
-            logger.info("Inside deleteDeviceMetaModel for model: {}", deviceModel);
-            DeviceMetaModel existingDeviceModel = deviceMetaModelRepo.findByDeviceModel(deviceModel);
+            logger.info("Inside deleteDeviceMetaModel for model: {}", deviceModel.toLowerCase());
+            DeviceMetaModel existingDeviceModel = deviceMetaModelRepo.findByDeviceModel(deviceModel.toLowerCase());
             if (existingDeviceModel == null) {
                 appExceptionHandler.raiseException("Given Device Model doesn't Exist");
             }
-            deviceMetaModelRepo.deleteByDeviceModel(deviceModel);
+            List<String> DeviceNames = deviceRepo.findAll().stream().
+                    filter(device -> device.getDeviceModel().equals(deviceModel.toLowerCase())).
+                    map(Device::getDevicename).collect(Collectors.toList());
+            if (!DeviceNames.isEmpty()) {
+                appExceptionHandler.raiseException("Given Device model Cannot Delete Associated Device");
+            }
+            deviceMetaModelRepo.deleteByDeviceModel(deviceModel.toLowerCase());
             response.put("status", "Success");
             response.put("message", "Device model deleted successfully");
-            response.put("deletedDeviceModel", deviceModel);
+            response.put("deletedDeviceModel", deviceModel.toLowerCase());
         } catch (Exception e) {
             e.printStackTrace();
             status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -205,7 +207,6 @@ public class DeviceMetaModelApi {
         return allModels;
     }
 
-    //TODO if plugable that device  name change that also i need change device name cardname position device....
 
 
 }

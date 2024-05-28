@@ -1247,6 +1247,68 @@ WHERE EXISTS (
 );
 (Array serach code)
 ---------------end------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS change_log (
+    log_id SERIAL PRIMARY KEY,
+    table_name TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    change_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    old_data JSONB,
+    new_data JSONB
+);
+
+
+CREATE OR REPLACE FUNCTION log_table_changes() RETURNS TRIGGER AS $$
+BEGIN
+    -- Skip logging for the change_log table
+    IF TG_TABLE_NAME = 'change_log' THEN
+        RETURN NULL;
+    END IF;
+
+    IF (TG_OP = 'DELETE') THEN
+        INSERT INTO change_log(table_name, operation, old_data)
+        VALUES (TG_TABLE_NAME, 'DELETE', row_to_json(OLD)::jsonb);
+        RETURN OLD;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO change_log(table_name, operation, old_data, new_data)
+        VALUES (TG_TABLE_NAME, 'UPDATE', row_to_json(OLD)::jsonb, row_to_json(NEW)::jsonb);
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        INSERT INTO change_log(table_name, operation, new_data)
+        VALUES (TG_TABLE_NAME, 'INSERT', row_to_json(NEW)::jsonb);
+        RETURN NEW;
+    END IF;
+    RETURN NULL; -- result is ignored since this is an AFTER trigger
+END;
+$$ LANGUAGE plpgsql;
+
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != 'change_log') LOOP
+        EXECUTE 'CREATE TRIGGER ' || r.tablename || '_log_trigger
+                 AFTER INSERT OR UPDATE OR DELETE ON ' || r.tablename ||
+                ' FOR EACH ROW EXECUTE FUNCTION log_table_changes();';
+    END LOOP;
+END $$;
+
+
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (SELECT event_object_table, trigger_name
+              FROM information_schema.triggers
+              WHERE trigger_schema = 'public' AND action_statement LIKE '%log_table_changes()%') LOOP
+        EXECUTE 'DROP TRIGGER ' || r.trigger_name || ' ON ' || r.event_object_table || ';';
+    END LOOP;
+END $$;
+
+
+
+-----------------------------------------------end------------------------------------------------------------------------------------
 
 
 

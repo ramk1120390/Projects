@@ -27,6 +27,15 @@ public interface LogicalPortRepo extends JpaRepository<LogicalPort, Long> {
             @Param("positionOnPort") Integer positionOnPort,
             @Param("devicename") String devicename);
 
+
+    @Query(value = "SELECT * FROM logical_port lp " +
+            "WHERE lp.position_on_port = :positionOnPort " +
+            "AND lp.devicename = :devicename", nativeQuery = true)
+    LogicalPort findLogicalPortByPositionvalidate(
+            @Param("positionOnPort") Integer positionOnPort,
+            @Param("devicename") String devicename);
+
+
     @Query(value = "CALL insert_logical_portoncard(:p_logicalportName, :p_positionOnCard, :p_positionOnDevice, "
             + ":p_portType, :p_OperationalState, :p_AdministrativeState, :p_UsageState, :p_Href, :p_PortSpeed, "
             + ":p_Capacity, :p_PositionOnPort, :p_ManagementIP, :p_DeviceName, :p_OrderId, :p_PlugableId, "

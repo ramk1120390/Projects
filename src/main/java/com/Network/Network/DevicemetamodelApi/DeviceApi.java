@@ -1005,10 +1005,10 @@ public class DeviceApi {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Port id not found");
                 }
                 //Todo Change logical port position based one Device no neeed check port id
-                existingLogicalPort = logicalPortRepo.findLogicalPortByPortIdAndPositionOnPortAndDeviceName(
-                        portid, logicalPortDTO.getPositionOnPort(), deviceName);
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPositionvalidate(logicalPortDTO.getPositionOnPort(),
+                        logicalPortDTO.getDeviceName());
                 if (existingLogicalPort != null) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body("Port position on position on port is already occupied");
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(" position Port is already occupied");
                 }
 
             } else if (type.equals("Pluggable")) {
@@ -1017,11 +1017,10 @@ public class DeviceApi {
                 if (exPluggable == null) {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable not found");
                 }
-                existingLogicalPort = logicalPortRepo.findLogicalPortByPlugableIdAndPositionOnPortAndDeviceName(
-                        plugableid, logicalPortDTO.getPositionOnPort(), deviceName
-                );
+                existingLogicalPort = logicalPortRepo.findLogicalPortByPositionvalidate(logicalPortDTO.getPositionOnPort(),
+                        logicalPortDTO.getDeviceName());
                 if (existingLogicalPort != null) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body("Pluggable position on position on port is already occupied");
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("Position on port is already occupied");
                 }
             } else {
                 throw new IllegalArgumentException("Invalid type selected");
