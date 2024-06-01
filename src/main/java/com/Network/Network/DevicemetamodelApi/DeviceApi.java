@@ -56,10 +56,10 @@ public class DeviceApi {
         building = building.toLowerCase();
         try {
             Building exBuilding = buildingRepo.findByBuildingName(building);
-            Device device = deviceRepo.findByDevicename(dto.getDevicename());
+            Device device = deviceRepo.findByDevicename(dto.getDevicename().toLowerCase());
             Optional<Order> order = orderRepo.findById(orderid);
             Order exOrder = order.orElse(null); // Using orElse to handle the optional
-            DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.findByDeviceModel(dto.getDeviceModel());
+            DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.findByDeviceModel(dto.getDeviceModel().toLowerCase());
 
             if (exBuilding == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given building not found");
@@ -68,14 +68,14 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given order not found");
             }
             if (device != null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device Already found");
             }
             if (deviceMetaModel == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device metamodel not found");
             }
 
             String customer = exOrder.getCustomer() != null ? exOrder.getCustomer().getCustomername() : null;
-            int success = deviceRepo.insertDevice(dto.getDevicename(), dto.getDeviceModel(), dto.getLocation(),
+            int success = deviceRepo.insertDevice(dto.getDevicename().toLowerCase(), dto.getDeviceModel().toLowerCase(), dto.getLocation(),
                     dto.getOrganisation(), customer, dto.getManagementIp(), dto.getRackPosition(),
                     dto.getOperationalState(), dto.getAdministrativeState(), dto.getUsageState(), dto.getSerialNumber(),
                     dto.getHref(), building, orderid, "building_to_device", 0);
@@ -1544,7 +1544,7 @@ public class DeviceApi {
         List<String> response = new ArrayList<>();
         try {
             Optional<String> deviceOptional = deviceRepo.findAll().stream()
-                    .filter(device -> device.getDevicename().equals(DeviceName.toLowerCase()))
+                    .filter(d -> d.getDevicename().equals(DeviceName.toLowerCase()))
                     .map(Device::getDeviceModel)
                     .findFirst();
             if (!deviceOptional.isPresent()) {

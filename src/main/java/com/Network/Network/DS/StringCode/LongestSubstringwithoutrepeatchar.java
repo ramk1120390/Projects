@@ -20,11 +20,14 @@ public class LongestSubstringwithoutrepeatchar {
                 response.clear();
             }
 
+            System.out.println(longsubstrlen);
+
             // Check if the current length of response map is greater than the previous longest substring length
             if (response.size() > longsubstrlen) {
                 longsubstrlen = response.size();
                 longsubstr = response.keySet().toString();
             }
+            System.out.println(response);
         }
 
         System.out.println("Longest Substring without repeating characters: " + longsubstr);

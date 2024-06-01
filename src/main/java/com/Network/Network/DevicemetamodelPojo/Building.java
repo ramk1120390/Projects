@@ -3,6 +3,7 @@ package com.Network.Network.DevicemetamodelPojo;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -33,15 +34,19 @@ public class Building implements Serializable {
 	private String drivingInstructions;
 
 	private String href;
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(
+			name = "building_additional_attribute",
+			joinColumns = @JoinColumn(name = "building_id"),
+			inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+	)
+	private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 
 	public Building() {
 		super();
 	}
 
-	public Building(Long id, String buildingName, City city, String notes, String clliCode, String phoneNumber,
-			String contactPerson, String address, String latitude, String longitude, String drivingInstructions,
-			String href) {
-		super();
+	public Building(Long id, String buildingName, City city, String notes, String clliCode, String phoneNumber, String contactPerson, String address, String latitude, String longitude, String drivingInstructions, String href, List<AdditionalAttribute> additionalAttributes) {
 		this.id = id;
 		this.buildingName = buildingName;
 		this.city = city;
@@ -54,6 +59,7 @@ public class Building implements Serializable {
 		this.longitude = longitude;
 		this.drivingInstructions = drivingInstructions;
 		this.href = href;
+		this.additionalAttributes = additionalAttributes;
 	}
 
 	public Long getId() {
@@ -150,6 +156,14 @@ public class Building implements Serializable {
 
 	public void setHref(String href) {
 		this.href = href;
+	}
+
+	public List<AdditionalAttribute> getAdditionalAttributes() {
+		return additionalAttributes;
+	}
+
+	public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+		this.additionalAttributes = additionalAttributes;
 	}
 
 	@Override

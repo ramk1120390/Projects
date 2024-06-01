@@ -3,7 +3,10 @@ package com.Network.Network.DevicemetamodelApi;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import com.Network.Network.DevicemetamodelPojo.*;
+import com.Network.Network.DevicemetamodelRepo.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,17 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.Network.Network.DevicemetamodelPojo.Building;
-import com.Network.Network.DevicemetamodelPojo.BuildingDto;
-import com.Network.Network.DevicemetamodelPojo.City;
-import com.Network.Network.DevicemetamodelPojo.CityDto;
-import com.Network.Network.DevicemetamodelPojo.Country;
-import com.Network.Network.DevicemetamodelPojo.State;
-import com.Network.Network.DevicemetamodelPojo.StateDto;
-import com.Network.Network.DevicemetamodelRepo.BuildingRepo;
-import com.Network.Network.DevicemetamodelRepo.CityRepo;
-import com.Network.Network.DevicemetamodelRepo.CountryRepo;
-import com.Network.Network.DevicemetamodelRepo.StateRepo;
 import com.Network.Network.Exception.AppExceptionHandler;
 
 import jakarta.transaction.Transactional;
@@ -133,6 +125,9 @@ public class LocationManagerApi {
         return response;
     }
 
+    @Autowired
+    AdditionalAttributeRepo additionalAttributeRepo;
+
     @PostMapping("/CreateBuilding")
     public Building createCity(@RequestParam("id") Long c_id, @RequestBody BuildingDto dto) {
         Building response = null;
@@ -154,6 +149,18 @@ public class LocationManagerApi {
             newBuilding.setCity(existingCity);
             String notes = dto.getNotes() != null ? dto.getNotes() : "City_To_Building";
             newBuilding.setNotes(notes);
+            response = buildingRepo.save(newBuilding);
+            List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+            if (dto.getAdditionalAttributes() != null && !dto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : dto.getAdditionalAttributes()) {
+                    AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                    additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                    additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                    AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                    additionalAttributes.add(savedAdditionalAttribute);
+                }
+            }
+            newBuilding.setAdditionalAttributes(additionalAttributes);
             response = buildingRepo.save(newBuilding);
             logger.info("Successfully inserted Building: {}", response);
         } catch (Exception e) {
@@ -186,10 +193,8 @@ public class LocationManagerApi {
                             "Another country with the given name already exists: " + country.getCountryName());
                 }
             }
-            // Update the existing country details
             existingCountry.setCountryName(CountryName);
             existingCountry.setNotes(country.getNotes());
-            // Save the updated country
             response = countryRepo.save(existingCountry);
         } catch (Exception e) {
             e.printStackTrace();
@@ -294,9 +299,11 @@ public class LocationManagerApi {
         }
     }
 
+    @Transactional
     @PutMapping("/UpdateBuilding")
     public Building updateBuilding(@RequestParam("name") String name, @RequestBody BuildingDto buildingDto) {
         name = name.toLowerCase();
+        Building Response = new Building();
         try {
             // Check if the building exists
             Building existingBuilding = buildingRepo.findByBuildingName(name);
@@ -345,8 +352,12 @@ public class LocationManagerApi {
                     appExceptionHandler.raiseException("Given City is not available: " + updatedCityName);
                 }
             }
-
-            // Update the building entity with the new building name and city name
+            String finalName = name;
+            List<Long> AAIds = buildingRepo.findAll().stream()
+                    .filter(building -> building.getBuildingName().equals(finalName))
+                    .flatMap(building -> building.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
             existingBuilding.setBuildingName(updatedBuildingName);
             existingBuilding.getCity().setCityName(updatedCityName);
             existingBuilding.setNotes(updatedNotes);
@@ -358,15 +369,26 @@ public class LocationManagerApi {
             existingBuilding.setLongitude(updatedLongitude);
             existingBuilding.setDrivingInstructions(updatedDrivingInstructions);
             existingBuilding.setHref(updatedHref);
-
-            // Save the updated building entity
-            return buildingRepo.save(existingBuilding);
-
+            Response = buildingRepo.save(existingBuilding);
+            List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+            if (buildingDto.getAdditionalAttributes() != null && !buildingDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : buildingDto.getAdditionalAttributes()) {
+                    AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                    additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                    additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                    AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                    additionalAttributes.add(savedAdditionalAttribute);
+                }
+            }
+            existingBuilding.setAdditionalAttributes(additionalAttributes);
+            Response = buildingRepo.save(existingBuilding);
+            additionalAttributeRepo.deleteAdditionalAttributesByIds(AAIds);
         } catch (Exception e) {
             e.printStackTrace();
             appExceptionHandler.raiseException(e.getMessage());
             return null; // or throw an exception
         }
+        return Response;
     }
 
     @DeleteMapping("/deleteCountry")

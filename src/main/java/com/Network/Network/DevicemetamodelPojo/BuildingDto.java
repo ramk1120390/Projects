@@ -1,5 +1,7 @@
 package com.Network.Network.DevicemetamodelPojo;
 
+import java.util.ArrayList;
+
 public class BuildingDto {
 	private Long id;
 	private String buildingName;
@@ -21,6 +23,15 @@ public class BuildingDto {
 	private String drivingInstructions;
 
 	private String href;
+	private ArrayList<AdditionalAttribute> additionalAttributes;
+
+	public ArrayList<AdditionalAttribute> getAdditionalAttributes() {
+		return additionalAttributes;
+	}
+
+	public void setAdditionalAttributes(ArrayList<AdditionalAttribute> additionalAttributes) {
+		this.additionalAttributes = additionalAttributes;
+	}
 
 	public Long getId() {
 		return id;
