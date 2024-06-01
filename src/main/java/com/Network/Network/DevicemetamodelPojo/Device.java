@@ -1,15 +1,10 @@
 package com.Network.Network.DevicemetamodelPojo;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Device implements Serializable {
@@ -54,7 +49,13 @@ public class Device implements Serializable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "order_id", referencedColumnName = "id")
 	private Order order;
-
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(
+			name = "device_additional_attribute",
+			joinColumns = @JoinColumn(name = "device_id"),
+			inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+	)
+	private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 
 	@Column
 	private String realtion;
@@ -65,13 +66,8 @@ public class Device implements Serializable {
 		super();
 	}
 
-	
 
-	public Device(Long id, String devicename, String deviceModel, String location, String organisation, String customer,
-			String managementIp, String rackPosition, String operationalState, String administrativeState,
-			String usageState, String serialNumber, String href, String credentials, String accessKey,
-			String pollInterval, Building building, Order order, String realtion) {
-		super();
+	public Device(Long id, String devicename, String deviceModel, String location, String organisation, String customer, String managementIp, String rackPosition, String operationalState, String administrativeState, String usageState, String serialNumber, String href, String credentials, String accessKey, String pollInterval, Building building, Order order, List<AdditionalAttribute> additionalAttributes, String realtion) {
 		this.id = id;
 		this.devicename = devicename;
 		this.deviceModel = deviceModel;
@@ -90,10 +86,9 @@ public class Device implements Serializable {
 		this.pollInterval = pollInterval;
 		this.building = building;
 		this.order = order;
+		this.additionalAttributes = additionalAttributes;
 		this.realtion = realtion;
 	}
-
-
 
 	public Long getId() {
 		return id;
@@ -252,6 +247,12 @@ public class Device implements Serializable {
 	public void setRealtion(String realtion) {
 		this.realtion = realtion;
 	}
-    
 
+	public List<AdditionalAttribute> getAdditionalAttributes() {
+		return additionalAttributes;
+	}
+
+	public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+		this.additionalAttributes = additionalAttributes;
+	}
 }

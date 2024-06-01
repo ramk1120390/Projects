@@ -3,6 +3,8 @@ package com.Network.Network.DevicemetamodelPojo;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Pluggable implements Serializable {
@@ -34,7 +36,13 @@ public class Pluggable implements Serializable {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "devicename", referencedColumnName = "devicename", nullable = true)
     private Device device;
-
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "pluggable_additional_attribute",
+            joinColumns = @JoinColumn(name = "pluggable_id"),
+            inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+    )
+    private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
     public Long getId() {
         return id;
     }

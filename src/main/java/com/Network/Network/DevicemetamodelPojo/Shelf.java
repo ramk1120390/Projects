@@ -1,15 +1,10 @@
 package com.Network.Network.DevicemetamodelPojo;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Shelf implements Serializable {
@@ -32,13 +27,17 @@ public class Shelf implements Serializable {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "devicename", referencedColumnName = "devicename")
 	private Device device;
-	
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(
+			name = "shelf_additional_attribute",
+			joinColumns = @JoinColumn(name = "shelf_id"),
+			inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+	)
+	private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 	private String realtion;
 
-	
-	public Shelf(Long id, String name, int shelfPosition, String operationalState, String administrativeState,
-			String href, String usageState, Device device, String realtion) {
-		super();
+
+	public Shelf(Long id, String name, int shelfPosition, String operationalState, String administrativeState, String href, String usageState, Device device, List<AdditionalAttribute> additionalAttributes, String realtion) {
 		this.id = id;
 		this.name = name;
 		this.shelfPosition = shelfPosition;
@@ -47,7 +46,16 @@ public class Shelf implements Serializable {
 		this.href = href;
 		this.usageState = usageState;
 		this.device = device;
+		this.additionalAttributes = additionalAttributes;
 		this.realtion = realtion;
+	}
+
+	public List<AdditionalAttribute> getAdditionalAttributes() {
+		return additionalAttributes;
+	}
+
+	public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+		this.additionalAttributes = additionalAttributes;
 	}
 
 	public Long getId() {

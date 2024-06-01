@@ -3,6 +3,8 @@ package com.Network.Network.DevicemetamodelPojo;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class CardSlot implements Serializable {
@@ -23,7 +25,13 @@ public class CardSlot implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cardid", referencedColumnName = "cardid")
     private Card card;
-
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "cardslot_additional_attribute",
+            joinColumns = @JoinColumn(name = "cardslot_id"),
+            inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+    )
+    private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
     public Long getCardslotid() {
         return cardslotid;
     }

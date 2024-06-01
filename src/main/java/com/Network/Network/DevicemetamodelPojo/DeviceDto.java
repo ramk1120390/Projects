@@ -3,6 +3,8 @@ package com.Network.Network.DevicemetamodelPojo;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 
+import java.util.ArrayList;
+
 public class DeviceDto {
 
 	private Long id;
@@ -41,13 +43,9 @@ public class DeviceDto {
 
 	private Long orderid;
 	private String realtion;
+	private ArrayList<AdditionalAttribute> additionalAttributes;
 
-	
-	public DeviceDto(Long id, String devicename, String deviceModel, String location, String organisation,
-			String customer, String managementIp, String rackPosition, String operationalState,
-			String administrativeState, String usageState, String serialNumber, String href, String credentials,
-			String accessKey, String pollInterval, String buildingname, Long orderid, String realtion) {
-		super();
+	public DeviceDto(Long id, String devicename, String deviceModel, String location, String organisation, String customer, String managementIp, String rackPosition, String operationalState, String administrativeState, String usageState, String serialNumber, String href, String credentials, String accessKey, String pollInterval, String buildingname, Long orderid, String realtion, ArrayList<AdditionalAttribute> additionalAttributes) {
 		this.id = id;
 		this.devicename = devicename;
 		this.deviceModel = deviceModel;
@@ -67,6 +65,7 @@ public class DeviceDto {
 		this.buildingname = buildingname;
 		this.orderid = orderid;
 		this.realtion = realtion;
+		this.additionalAttributes = additionalAttributes;
 	}
 
 	public Long getId() {
@@ -219,6 +218,14 @@ public class DeviceDto {
 
 	public void setRealtion(String realtion) {
 		this.realtion = realtion;
+	}
+
+	public ArrayList<AdditionalAttribute> getAdditionalAttributes() {
+		return additionalAttributes;
+	}
+
+	public void setAdditionalAttributes(ArrayList<AdditionalAttribute> additionalAttributes) {
+		this.additionalAttributes = additionalAttributes;
 	}
 
 	public DeviceDto() {

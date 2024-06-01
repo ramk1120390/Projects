@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -22,8 +24,34 @@ public class Slot implements Serializable {
     @JoinColumn(name = "shelfname", referencedColumnName = "name")
     private Shelf shelf;
     private String relation;
-    //TODO Slotname and shelfname nee change to be composite //or change into device name into composite
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "slot_additional_attribute",
+            joinColumns = @JoinColumn(name = "slot_id"),
+            inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+    )
+    private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 
+    public Slot(Long id, String slotname, int slotPosition, String operationalState, String administrativeState, String usageState, String href, Shelf shelf, String relation, List<AdditionalAttribute> additionalAttributes) {
+        this.id = id;
+        this.slotname = slotname;
+        this.slotPosition = slotPosition;
+        this.operationalState = operationalState;
+        this.administrativeState = administrativeState;
+        this.usageState = usageState;
+        this.href = href;
+        this.shelf = shelf;
+        this.relation = relation;
+        this.additionalAttributes = additionalAttributes;
+    }
+
+    public List<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 
     public Long getId() {
         return id;

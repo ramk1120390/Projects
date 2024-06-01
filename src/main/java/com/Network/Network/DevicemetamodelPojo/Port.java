@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Entity
@@ -40,6 +42,13 @@ public class Port implements Serializable {    //if we are creating port on card
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "devicename", referencedColumnName = "devicename", nullable = true)
     private Device device;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "port_additional_attribute",
+            joinColumns = @JoinColumn(name = "port_id"),
+            inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
+    )
+    private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 
     public Long getPortid() {
         return portid;

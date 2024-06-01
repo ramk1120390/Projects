@@ -11,7 +11,7 @@ import com.Network.Network.DevicemetamodelPojo.Device;
 public interface DeviceRepo extends JpaRepository<Device, Long> {
     Device findByDevicename(String devicename);
 
-    @Query(value = "CALL insert_device(:iDevicename, :iDeviceModel, :iLocation, :iOrganisation, :iCustomer, :iManagementIp, :iRackPosition, :iOperationalState, :iAdministrativeState, :iUsageState, :iSerialNumber, :iHref, :iBuilding, :iOrderId, :i_realtion, :success)", nativeQuery = true)
+    @Query(value = "CALL insert_device(:iDevicename, :iDeviceModel, :iLocation, :iOrganisation, :iCustomer, :iManagementIp, :iRackPosition, :iOperationalState, :iAdministrativeState, :iUsageState, :iSerialNumber, :iHref, :iBuilding, :iOrderId, :i_realtion, :keys, :p_values , :success)", nativeQuery = true)
     int insertDevice(
             @Param("iDevicename") String iDevicename,
             @Param("iDeviceModel") String iDeviceModel,
@@ -28,9 +28,12 @@ public interface DeviceRepo extends JpaRepository<Device, Long> {
             @Param("iBuilding") String iBuilding,
             @Param("iOrderId") Long iOrderId,
             @Param("i_realtion") String iRelation,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] p_values,
             @Param("success") int success
     );
-    @Query(value = "CALL update_device(:i_administrative_state, :i_credentials, :i_customer, :i_device_model, :i_devicename, :i_href, :i_location, :i_management_ip, :i_operational_state, :i_organisation, :i_poll_interval, :i_rack_position, :i_relation, :i_serial_number, :i_usage_state, :i_building_name, :i_access_key, :i_order_id, :i_id, :success)", nativeQuery = true)
+
+    @Query(value = "CALL update_device(:i_administrative_state, :i_credentials, :i_customer, :i_device_model, :i_devicename, :i_href, :i_location, :i_management_ip, :i_operational_state, :i_organisation, :i_poll_interval, :i_rack_position, :i_relation, :i_serial_number, :i_usage_state, :i_building_name, :i_access_key, :i_order_id, :i_id, :keys, :p_values, :success)", nativeQuery = true)
     int updateDevice(
             @Param("i_administrative_state") String administrativeState,
             @Param("i_credentials") String credentials,
@@ -51,9 +54,10 @@ public interface DeviceRepo extends JpaRepository<Device, Long> {
             @Param("i_access_key") String accessKey,
             @Param("i_order_id") Long orderId,
             @Param("i_id") Long id,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] p_values,
             @Param("success") Integer success
     );
-
 
 
 }

@@ -73,14 +73,20 @@ CREATE OR REPLACE PROCEDURE insert_device(
     i_building VARCHAR,
     i_order_id BIGINT,
     i_realtion Varchar,
+    keys VARCHAR[],
+    p_values VARCHAR[],
     INOUT success INT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    inserted_id BIGINT;
+    d_inserted_id BIGINT;
     shelf_count INT;
     shelf_position INT;
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+
 BEGIN
     -- Get the number of shelves contained based on device model
     SELECT shelves_contained INTO shelf_count FROM device_meta_model WHERE device_model = i_deviceModel;
@@ -122,7 +128,22 @@ BEGIN
             i_order_id,
             i_realtion
         )
-        RETURNING id INTO inserted_id;
+        RETURNING id INTO d_inserted_id;
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                -- Insert into physicalconnection_additional_attribute table
+                INSERT INTO device_additional_attribute (device_id, additional_attribute_id)
+                VALUES (d_inserted_id, inserted_id);
+            END LOOP;
+        END IF;
+
 
         -- Insert shelves associated with the device
         FOR shelf_position IN 1..shelf_count LOOP
@@ -145,7 +166,7 @@ BEGIN
                     i_href,
                     i_usageState,
                     i_devicename,
-                    'device_to_shelf'
+                    'DEVICE_TO_SHELF'
                 );
             EXCEPTION
                 WHEN others THEN
@@ -166,7 +187,6 @@ BEGIN
     END;
 END;
 $$;
-
 ------------------    end -----------------------------------------------------------------------------
 
 
@@ -190,14 +210,20 @@ CREATE OR REPLACE PROCEDURE update_device(
     i_access_key VARCHAR,
     i_order_id BIGINT,
     i_id BIGINT,
-    inOUT success INT
+    keys VARCHAR[],
+    p_values VARCHAR[],
+    INOUT success INT
 )
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    inserted_id BIGINT;
+    existing_id BIGINT;
+    inserted_ids BIGINT[] := '{}';
 BEGIN
     -- Update data in the device table
-    UPDATE device 
-    SET 
+    UPDATE device
+    SET
         administrative_state = i_administrative_state,
         credentials = i_credentials,
         customer = i_customer,
@@ -216,19 +242,55 @@ BEGIN
         building_name = i_building_name,
         access_key = i_access_key,
         order_id = i_order_id
-    WHERE 
+    WHERE
         id = i_id;
+
+    -- Iterate over each key-value pair and insert or update additional attributes
+    FOR i IN 1..array_length(keys, 1) LOOP
+        -- Check if the key-value pair already exists for this device
+        BEGIN
+            SELECT id INTO existing_id
+            FROM additional_attribute aa
+            JOIN device_additional_attribute daa ON aa.id = daa.additional_attribute_id
+            WHERE daa.device_id = i_id
+            AND aa."key" = keys[i]
+            AND aa."value" = p_values[i];
+
+            IF existing_id IS NOT NULL THEN
+                -- Key-value pair exists, update the existing additional attribute
+                -- No need to update the additional_attribute table, as the key-value pair already exists
+                -- Update device_additional_attribute table if necessary (usually it remains the same)
+                UPDATE device_additional_attribute
+                SET device_id = i_id
+                WHERE device_id = i_id AND additional_attribute_id = existing_id;
+            ELSE
+                -- Key-value pair does not exist, insert new additional attribute
+                INSERT INTO additional_attribute ("key", "value")
+                VALUES (keys[i], p_values[i])
+                RETURNING id INTO inserted_id;
+
+                -- Insert into device_additional_attribute table
+                INSERT INTO device_additional_attribute (device_id, additional_attribute_id)
+                VALUES (i_id, inserted_id);
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- Log or handle the specific error here
+                RAISE NOTICE 'Error processing key-value pair: %, %', keys[i], p_values[i];
+        END;
+    END LOOP;
 
     -- Set success to 1 indicating successful execution
     success := 1;
-    
+
 EXCEPTION
     -- If an error occurs, set success to 0
     WHEN OTHERS THEN
         success := 0;
+        -- Log or handle the general error here
+        RAISE NOTICE 'Error updating device: %', SQLERRM;
 END;
 $$;
-
 
 ---------------------------------       end -------------------------------------------------------------------------------------------
 

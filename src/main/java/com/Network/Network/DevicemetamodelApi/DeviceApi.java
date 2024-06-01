@@ -50,9 +50,9 @@ public class DeviceApi {
     private CarslotRepo carslotRepo;
 
 
-    @PostMapping("/insertDevice")
-    public ResponseEntity<String> insertDeviceMetaModel(@RequestParam("name") String building,
-                                                        @RequestParam("orderid") Long orderid, @RequestBody DeviceDto dto) {
+    @PostMapping("/insertDeviceOnBuilding")
+    public ResponseEntity<String> insertDeviceOnBuilding(@RequestParam("BuildingName") String building,
+                                                         @RequestParam("orderid") Long orderid, @RequestBody DeviceDto dto) {
         building = building.toLowerCase();
         try {
             Building exBuilding = buildingRepo.findByBuildingName(building);
@@ -60,6 +60,8 @@ public class DeviceApi {
             Optional<Order> order = orderRepo.findById(orderid);
             Order exOrder = order.orElse(null); // Using orElse to handle the optional
             DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.findByDeviceModel(dto.getDeviceModel().toLowerCase());
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
 
             if (exBuilding == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given building not found");
@@ -73,12 +75,20 @@ public class DeviceApi {
             if (deviceMetaModel == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device metamodel not found");
             }
+            if (dto.getAdditionalAttributes() != null && !dto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : dto.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
+            //TODO with Naming Converion Country_State_city_buildingName
 
-            String customer = exOrder.getCustomer() != null ? exOrder.getCustomer().getCustomername() : null;
+            String customer = exOrder.getCustomer() != null ? exOrder.getCustomer().getCustomername() : "NA";
             int success = deviceRepo.insertDevice(dto.getDevicename().toLowerCase(), dto.getDeviceModel().toLowerCase(), dto.getLocation(),
                     dto.getOrganisation(), customer, dto.getManagementIp(), dto.getRackPosition(),
                     dto.getOperationalState(), dto.getAdministrativeState(), dto.getUsageState(), dto.getSerialNumber(),
-                    dto.getHref(), building, orderid, "building_to_device", 0);
+                    dto.getHref(), building, orderid, "BUILDING_TO_DEVICE", A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
 
             if (success == 1) {
                 return ResponseEntity.ok("Device inserted successfully.");
@@ -111,7 +121,8 @@ public class DeviceApi {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Given device name already exists");
                 }
             }
-
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
 
             String newDeviceName = (deviceDto.getDevicename() != null) ? deviceDto.getDevicename() : device.getDevicename();
             String deviceModel = (deviceDto.getDeviceModel() != null) ? deviceDto.getDeviceModel() : device.getDeviceModel();
@@ -122,8 +133,8 @@ public class DeviceApi {
 
             // Fetch the customer details from existing order
             Order existingOrder = orderRepo.findById(orderId).orElse(null);
-            String customer = (deviceDto.getCustomer() != null && existingOrder != null) ? deviceDto.getCustomer() : existingOrder.getCustomer().getCustomername();
-
+            // String customer = (deviceDto.getCustomer() != null && existingOrder != null) ? deviceDto.getCustomer() : existingOrder.getCustomer().getCustomername();
+            String customer = existingOrder.getCustomer() != null ? existingOrder.getCustomer().getCustomername() : "Na";
             // Fetch other details from DTO or use existing values
             String location = (deviceDto.getLocation() != null) ? deviceDto.getLocation() : device.getLocation();
             String organisation = (deviceDto.getOrganisation() != null) ? deviceDto.getOrganisation() : device.getOrganisation();
@@ -139,7 +150,7 @@ public class DeviceApi {
             String pollInterval = (deviceDto.getPollInterval() != null) ? deviceDto.getPollInterval() : device.getPollInterval();
 
             // Fetch the building details from repository if new building name is provided
-            if (deviceDto.getBuildingname() != null) {
+            if (device.getBuilding().getBuildingName() != deviceDto.getBuildingname()) {
                 Building existingBuilding = buildingRepo.findByBuildingName(deviceDto.getBuildingname());
                 if (existingBuilding == null) {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given building not found");
@@ -154,7 +165,7 @@ public class DeviceApi {
             }
 
             // Check if device model exists
-            if (deviceDto.getDeviceModel() != null) {
+            if (deviceDto.getDeviceModel() != device.getDeviceModel()) {
                 DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.findByDeviceModel(deviceDto.getDeviceModel());
                 if (deviceMetaModel == null) {
                     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given device model not found");
@@ -169,22 +180,37 @@ public class DeviceApi {
                     //TODO if possible change Same position need check allowed card list also if card under device
                 }
             }
+            if (deviceDto.getAdditionalAttributes() != null && !deviceDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : deviceDto.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
+
             int success = deviceRepo.updateDevice(administrativeState, credentials, customer, deviceModel,
                     newDeviceName, href, location, managementIp, operationalState, organisation, pollInterval,
                     rackPosition, device.getRealtion(), serialNumber, usageState, buildingName, accessKey,
-                    orderId, device.getId(), 0);
-            System.out.println("success: " + success);
-
+                    orderId, device.getId(), A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
             if (success == 1) {
                 return ResponseEntity.ok("Device updated successfully.");
             } else {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body("Error occurred while updating device.");
             }
+            //TODO relation might if Device update in rack "RACK-TO-DEVICE"
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while updating device.");
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while updating device.");
+            }
         }
+
     }
 
     @PostMapping("/CreateCard")
