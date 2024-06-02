@@ -257,9 +257,6 @@ BEGIN
             AND aa."value" = p_values[i];
 
             IF existing_id IS NOT NULL THEN
-                -- Key-value pair exists, update the existing additional attribute
-                -- No need to update the additional_attribute table, as the key-value pair already exists
-                -- Update device_additional_attribute table if necessary (usually it remains the same)
                 UPDATE device_additional_attribute
                 SET device_id = i_id
                 WHERE device_id = i_id AND additional_attribute_id = existing_id;
@@ -366,71 +363,108 @@ CREATE OR REPLACE PROCEDURE insert_card(
     i_administrativeState VARCHAR,
     i_usageState VARCHAR,
     i_href VARCHAR,
-    i_orderid INTEGER,
+    i_orderid BIGINT,
+    keys VARCHAR[],
+    p_values VARCHAR[],
     inout success INT
 ) LANGUAGE plpgsql
 AS $$
 DECLARE
     shelfs VARCHAR(100); -- Declare shelfs variable
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
 BEGIN
     -- Retrieve shelf name based on device name and shelf position
-    SELECT name INTO shelfs
-    FROM shelf
-    WHERE devicename = i_devicename AND shelf_position = i_shelfPosition;
+    BEGIN
+        SELECT name INTO shelfs
+        FROM shelf
+        WHERE devicename = i_devicename AND shelf_position = i_shelfPosition;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving shelf name for device: %, shelf position: %. Error: %', i_devicename, i_shelfPosition, SQLERRM;
+    END;
 
     -- Insert data into Slot table
-    INSERT INTO slot (
-        slotname,
-        slot_position,
-        operational_state,
-        administrative_state,
-        usage_state,
-        href,
-        shelfname,
-        relation
-    ) VALUES (
-        i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Generate slotname in desired format
-        i_slotPosition,
-        i_operationalState,
-        i_administrativeState,
-        i_usageState,
-        i_href,
-        shelfs,
-        'shelf_to_slot'
-    );
+    BEGIN
+        INSERT INTO slot (
+            slotname,
+            slot_position,
+            operational_state,
+            administrative_state,
+            usage_state,
+            href,
+            shelfname,
+            relation
+        ) VALUES (
+            i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Generate slotname in desired format
+            i_slotPosition,
+            i_operationalState,
+            i_administrativeState,
+            i_usageState,
+            i_href,
+            shelfs,
+            'SHELF_TO_SLOT'
+        );
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into Slot table for device: %, shelf position: %, slot position: %. Error: %', i_devicename, i_shelfPosition, i_slotPosition, SQLERRM;
+    END;
 
     -- Insert data into Card table
-    INSERT INTO card (
-        cardname,
-        devicename,
-        slotname,
-        shelf_position,
-        slot_position,
-        vendor,
-        card_model,
-        card_part_number,
-        operational_state,
-        administrative_state,
-        usage_state,
-        href,
-        order_id,
-        realation
-    ) VALUES (
-        i_cardname,
-        i_devicename,
-        i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Generate slotname in desired format
-        i_shelfPosition,
-        i_slotPosition,
-        i_vendor,
-        i_cardModel,
-        i_cardPartNumber,
-        i_operationalState,
-        i_administrativeState,
-        i_usageState,
-        i_href,
-        i_orderid,
-        'slot_to_card'
-    );
+    BEGIN
+        INSERT INTO card (
+            cardname,
+            devicename,
+            slotname,
+            shelf_position,
+            slot_position,
+            vendor,
+            card_model,
+            card_part_number,
+            operational_state,
+            administrative_state,
+            usage_state,
+            href,
+            order_id,
+            realation
+        ) VALUES (
+            i_cardname,
+            i_devicename,
+            i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Generate slotname in desired format
+            i_shelfPosition,
+            i_slotPosition,
+            i_vendor,
+            i_cardModel,
+            i_cardPartNumber,
+            i_operationalState,
+            i_administrativeState,
+            i_usageState,
+            i_href,
+            i_orderid,
+            'SLOT_TO_CARD'
+        );
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into Card table for card: %, device: %, shelf position: %, slot position: %. Error: %', i_cardname, i_devicename, i_shelfPosition, i_slotPosition, SQLERRM;
+    END;
+
+    -- Insert additional attributes
+    BEGIN
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                -- Insert into physicalconnection_additional_attribute table
+                INSERT INTO card_additional_attribute (cardname, devicename, additional_attribute_id)
+                VALUES (i_cardname, i_devicename, inserted_id);
+            END LOOP;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting additional attributes for card: %, device: %. Error: %', i_cardname, i_devicename, SQLERRM;
+    END;
 
     -- Set success flag to 1 indicating successful execution
     success := 1;
@@ -439,15 +473,12 @@ EXCEPTION
     WHEN OTHERS THEN
         -- Set success flag to 0 indicating failure
         success := 0;
-
         -- Rollback the transaction
         ROLLBACK;
-
-        -- Raise the exception
-        RAISE;
+        -- Raise the exception with a custom message
+        RAISE EXCEPTION 'Error in procedure insert_card. Error: %', SQLERRM;
 END;
 $$;
-
 
 
 ----------------------------------- end -----------------------------------------------------------------------------------------------
@@ -468,67 +499,149 @@ CREATE OR REPLACE PROCEDURE update_card(
     i_href VARCHAR,
     i_orderid BIGINT,
     i_slotid BIGINT, -- Added slotid parameter
-    inout success INT
-) 
+    keys VARCHAR[],
+    p_values VARCHAR[],
+    INOUT success INT
+)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     shelf_name VARCHAR(100); -- Declare shelf_name variable
+    existing_id BIGINT;
+    inserted_id BIGINT;
 BEGIN
-    -- Retrieve shelf name based on device name and shelf position
-    SELECT name INTO shelf_name
-    FROM shelf
-    WHERE devicename = i_devicename AND shelf_position = i_shelfPosition;
+    BEGIN
+        -- Retrieve shelf name based on device name and shelf position
+        SELECT name INTO shelf_name
+        FROM shelf
+        WHERE devicename = i_devicename AND shelf_position = i_shelfPosition;
+        RAISE NOTICE 'Shelf name retrieved: %', shelf_name;
+    EXCEPTION
+        WHEN OTHERS THEN
+            success := 0;
+            RAISE NOTICE 'Error retrieving shelf name: % %', SQLERRM, SQLSTATE;
+            RAISE;
+    END;
 
-    -- Update data in Slot table
-    UPDATE slot
-    SET
-        slot_position = i_slotPosition,
-        operational_state = i_operationalState,
-        administrative_state = i_administrativeState,
-        usage_state = i_usageState,
-        href = i_href,
-        shelfname = shelf_name, -- Update the shelf name
-        slotname = i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition -- Set the slot name based on slot id
-    WHERE
-        id = i_slotid; -- Update slot information based on slot id
+    BEGIN
+        -- Update data in Slot table
+        UPDATE slot
+        SET
+            slot_position = i_slotPosition,
+            operational_state = i_operationalState,
+            administrative_state = i_administrativeState,
+            usage_state = i_usageState,
+            href = i_href,
+            shelfname = shelf_name, -- Update the shelf name
+            slotname = i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition -- Set the slot name based on slot id
+        WHERE
+            id = i_slotid; -- Update slot information based on slot id
+        RAISE NOTICE 'Slot table updated for slot id: %', i_slotid;
+    EXCEPTION
+        WHEN OTHERS THEN
+            success := 0;
+            RAISE NOTICE 'Error updating slot table: % %', SQLERRM, SQLSTATE;
+            RAISE;
+    END;
 
-    -- Update data in Card table
-    UPDATE card
-    SET
-        cardname = i_cardname,
-        devicename = i_devicename,
-        slotname = i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Set the slot name based on slot id
-        shelf_position = i_shelfPosition,
-        slot_position = i_slotPosition,
-        vendor = i_vendor,
-        card_model = i_cardModel,
-        card_part_number = i_cardPartNumber,
-        operational_state = i_operationalState,
-        administrative_state = i_administrativeState,
-        usage_state = i_usageState,
-        href = i_href,
-        order_id = i_orderid
-    WHERE
-        cardid = i_cardid;
+    BEGIN
+        -- Update data in Card table
+        UPDATE card
+        SET
+            cardname = i_cardname,
+            devicename = i_devicename,
+            slotname = i_devicename || '/' || i_shelfPosition || '/' || i_slotPosition, -- Set the slot name based on slot id
+            shelf_position = i_shelfPosition,
+            slot_position = i_slotPosition,
+            vendor = i_vendor,
+            card_model = i_cardModel,
+            card_part_number = i_cardPartNumber,
+            operational_state = i_operationalState,
+            administrative_state = i_administrativeState,
+            usage_state = i_usageState,
+            href = i_href,
+            order_id = i_orderid
+        WHERE
+            cardid = i_cardid;
+        RAISE NOTICE 'Card table updated for card id: %', i_cardid;
+    EXCEPTION
+        WHEN OTHERS THEN
+            success := 0;
+            RAISE NOTICE 'Error updating card table: % %', SQLERRM, SQLSTATE;
+            RAISE;
+    END;
+
+    FOR i IN 1..array_length(keys, 1) LOOP
+        BEGIN
+            -- Check if the key-value pair already exists for this device
+            SELECT id INTO existing_id
+            FROM additional_attribute aa
+            JOIN card_additional_attribute daa ON aa.id = daa.additional_attribute_id
+            WHERE daa.devicename = i_devicename
+            AND daa.cardname = i_cardname
+            AND aa."key" = keys[i]
+            AND aa."value" = p_values[i];
+            RAISE NOTICE 'Checked existence for key-value pair: %, %', keys[i], p_values[i];
+
+            IF existing_id IS NOT NULL THEN
+                BEGIN
+                    UPDATE card_additional_attribute
+                    SET cardname = i_cardname, devicename = i_devicename
+                    WHERE devicename = i_devicename AND cardname = i_cardname AND additional_attribute_id = existing_id;
+                    RAISE NOTICE 'Updated additional attribute: %, %', keys[i], p_values[i];
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        success := 0;
+                        RAISE NOTICE 'Error updating additional attribute: %, % % %', keys[i], p_values[i], SQLERRM, SQLSTATE;
+                        RAISE;
+                END;
+            ELSE
+                BEGIN
+                    -- Key-value pair does not exist, insert new additional attribute
+                    INSERT INTO additional_attribute ("key", "value")
+                    VALUES (keys[i], p_values[i])
+                    RETURNING id INTO inserted_id;
+                    RAISE NOTICE 'Inserted new additional attribute: %, %', keys[i], p_values[i];
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        success := 0;
+                        RAISE NOTICE 'Error inserting additional attribute: %, % % %', keys[i], p_values[i], SQLERRM, SQLSTATE;
+                        RAISE;
+                END;
+
+                BEGIN
+                    -- Insert into device_additional_attribute table
+                    INSERT INTO card_additional_attribute (devicename, cardname, additional_attribute_id)
+                    VALUES (i_devicename, i_cardname, inserted_id);
+                    RAISE NOTICE 'Inserted into card_additional_attribute for: %, %', i_devicename, i_cardname;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        success := 0;
+                        RAISE NOTICE 'Error inserting into card_additional_attribute: % %', SQLERRM, SQLSTATE;
+                        RAISE;
+                END;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                success := 0;
+                RAISE NOTICE 'Error processing key-value pair: %, % % %', keys[i], p_values[i], SQLERRM, SQLSTATE;
+                RAISE;
+        END;
+    END LOOP;
 
     -- Set success flag to 1 indicating successful execution
     success := 1;
-
+    RAISE NOTICE 'Procedure executed successfully';
 EXCEPTION
     WHEN OTHERS THEN
-        -- Set success flag to 0 indicating failure
-        success := 0;
-
-        -- Rollback the transaction
+        -- Rollback the transaction in case of any error
+        RAISE NOTICE 'Error in procedure: % %', SQLERRM, SQLSTATE;
         ROLLBACK;
-
-        -- Raise the exception
         RAISE;
 END;
 $$;
 
---------------------------------- end------------------------------------------------------------------------------------
+--------------------------------- end-----------------------------------------------------------------------------------
 
 CREATE OR REPLACE PROCEDURE insert_port(
     i_portname VARCHAR,
@@ -547,19 +660,55 @@ CREATE OR REPLACE PROCEDURE insert_port(
     i_order_id BIGINT,
     i_devicename VARCHAR,
     i_cardid BIGINT,
+    keys VARCHAR[],
+    p_values VARCHAR[],
     inout o_success INT
 )
 LANGUAGE plpgsql
 AS $$
+declare
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+    d_inserted_id BIGINT;
 BEGIN
     -- Create or get card slot
-    INSERT INTO card_slot (name, slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
-    VALUES (i_cardSlotName, i_positionOnCard, i_operationalState, i_administrativeState, i_usageState, i_href, i_cardname, 'card-to-cardslot', i_cardid);
+    BEGIN
+        INSERT INTO card_slot (name, slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
+        VALUES (i_cardSlotName, i_positionOnCard, i_operationalState, i_administrativeState, i_usageState, i_href, i_cardname, 'CARD-TO-CARDSLOT', i_cardid);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into Card Slot table for Port: %, slot position: %. Error: %', i_cardname, i_positionOnCard, SQLERRM;
+    END;
 
     -- Create port
-    INSERT INTO port (portname, position_on_card, position_on_device, port_type, operational_state, administrative_state, usage_state, href, port_speed, capacity, management_ip, relation, cardname, cardlslotname, order_id, devicename)
-    VALUES (i_portname, i_positionOnCard, 0, 'card-to-port', i_operationalState, i_administrativeState, i_usageState, i_href, i_PortSpeed, i_Capacity, i_managementIp, 'Cardslot-to-port', i_cardname, i_cardSlotName, i_order_id, i_devicename);
-    
+    BEGIN
+        INSERT INTO port (portname, position_on_card, position_on_device, port_type, operational_state, administrative_state, usage_state, href, port_speed, capacity, management_ip, relation, cardname, cardlslotname, order_id, devicename)
+        VALUES (i_portname, i_positionOnCard, 0, 'card-to-port', i_operationalState, i_administrativeState, i_usageState, i_href, i_PortSpeed, i_Capacity, i_managementIp, 'CARDSLOT_TO_PORT', i_cardname, i_cardSlotName, i_order_id, i_devicename)
+        RETURNING portid INTO d_inserted_id;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into Port table for CARD: %, portname: %. Error: %', i_cardname, i_portname, SQLERRM;
+    END;
+
+     -- Insert additional attributes
+    BEGIN
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                -- Insert into physicalconnection_additional_attribute table
+                INSERT INTO port_additional_attribute (port_id, additional_attribute_id)
+                VALUES (d_inserted_id,inserted_id);
+            END LOOP;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting additional attributes for port: %. Error: %', i_portname, SQLERRM;
+    END;
+
     o_success := 1; -- Success
 EXCEPTION
     WHEN others THEN
@@ -568,12 +717,10 @@ EXCEPTION
         o_success := 0; -- Failure
         RAISE;
 END;
-$$;
+$$
 
 
 --------------------------------- end------------------------------------------------------------------------------------
-
-
 CREATE OR REPLACE PROCEDURE insert_deviceport(
     i_portname VARCHAR,
     i_positionOnDevice INTEGER,
@@ -587,26 +734,58 @@ CREATE OR REPLACE PROCEDURE insert_deviceport(
     i_relation VARCHAR,
     i_order_id BIGINT,
     i_devicename VARCHAR,
+    keys VARCHAR[],
+    p_values VARCHAR[],
     inout o_success INT
 )
 LANGUAGE plpgsql
 AS $$
+declare
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+    d_inserted_id BIGINT;
 BEGIN
     -- Start a transaction
     BEGIN
         -- Create port
         INSERT INTO port (portname, position_on_card, position_on_device, port_type, operational_state, administrative_state, usage_state, href, port_speed, capacity, management_ip, relation, cardname, cardlslotname, order_id, devicename)
-        VALUES (i_portname, 0, i_positionOnDevice, 'device-to-port', i_operationalState, i_administrativeState, i_usageState, i_href, i_PortSpeed, i_Capacity, i_managementIp, 'device-to-port', null, null, i_order_id, i_devicename);
-        
-        -- If no exceptions, commit the transaction
-        o_success := 1; -- Success
-    EXCEPTION
-        WHEN others THEN
-            -- If an exception occurs, rollback the transaction
-            ROLLBACK;
-            o_success := 0; -- Failure
-            RAISE;
+        VALUES (i_portname, 0, i_positionOnDevice, 'DEVICE-TO-PORT', i_operationalState, i_administrativeState, i_usageState, i_href, i_PortSpeed, i_Capacity, i_managementIp, i_relation, null, null, i_order_id, i_devicename)
+         RETURNING portid INTO d_inserted_id;
+
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into Port table for DEVICE: %, portname: %. Error: %', i_devicename, i_portname, SQLERRM;
     END;
+
+    -- Insert additional attributes
+    BEGIN
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                -- Insert into port_additional_attribute table
+                INSERT INTO port_additional_attribute (port_id, additional_attribute_id)
+                VALUES (d_inserted_id, inserted_id);
+            END LOOP;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting additional attributes for port: %. Error: %', i_portname, SQLERRM;
+    END;
+
+    -- If no exceptions, commit the transaction
+    o_success := 1; -- Success
+
+EXCEPTION
+    WHEN others THEN
+        -- If an exception occurs, rollback the transaction
+        ROLLBACK;
+        o_success := 0; -- Failure
+        RAISE;
 END;
 $$;
 --- end------------------------------------------------------------------------------------
@@ -629,33 +808,66 @@ CREATE OR REPLACE PROCEDURE insert_pluggable(
     i_order_id BIGINT,
     i_devicename VARCHAR,
     i_cardid BIGINT,
+    keys VARCHAR[],
+    p_values VARCHAR[],
     inout o_success INT
 )
 LANGUAGE plpgsql
 AS $$
+declare
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+    d_inserted_id BIGINT;
 BEGIN
-    -- Start a transaction
+    -- Create or get card slot
     BEGIN
-        -- Create or get card slot
         INSERT INTO card_slot (name, slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
-        VALUES (i_cardSlotName, i_positionOnCard, i_operationalState, i_administrativeState, i_usageState, i_href, i_cardname, 'card-to-cardslot', i_cardid);
-
-        -- Create pluggable
-        INSERT INTO pluggable (plugablename, position_on_card, position_on_device, vendor, pluggable_model, pluggable_part_number, operational_state, administrative_state, usage_state, href, management_ip, relation, cardname, cardlslotname, order_id, devicename)
-        VALUES (i_pluggablename, i_positionOnCard, 0, i_vendor, i_pluggableModel, i_pluggablePartNumber, i_operationalState, i_administrativeState, i_usageState, i_href, i_managementIp, 'cardslot-to-pluggable', i_cardname, i_cardSlotName, i_order_id, i_devicename);
-
-        -- If no exceptions, commit the transaction
-        o_success := 1; -- Success
-    EXCEPTION
-        WHEN others THEN
-            -- If an exception occurs, rollback the transaction
-            ROLLBACK;
-            o_success := 0; -- Failure
-            RAISE;
+        VALUES (i_cardSlotName, i_positionOnCard, i_operationalState, i_administrativeState, i_usageState, i_href, i_cardname, 'CARD-TO-CARDSLOT', i_cardid);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into card_slot table for card: %, slot position: %. Error: %', i_cardname, i_positionOnCard, SQLERRM;
     END;
+
+    -- Create pluggable
+    BEGIN
+        INSERT INTO pluggable (plugablename, position_on_card, position_on_device, vendor, pluggable_model, pluggable_part_number, operational_state, administrative_state, usage_state, href, management_ip, relation, cardname, cardlslotname, order_id, devicename)
+        VALUES (i_pluggablename, i_positionOnCard, 0, i_vendor, i_pluggableModel, i_pluggablePartNumber, i_operationalState, i_administrativeState, i_usageState, i_href, i_managementIp, 'CARDSLOT-TO-PLUGGABLE', i_cardname, i_cardSlotName, i_order_id, i_devicename)
+        RETURNING id INTO d_inserted_id;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting into pluggable table for device: %, pluggable name: %. Error: %', i_devicename, i_pluggablename, SQLERRM;
+    END;
+
+    -- Insert additional attributes
+    BEGIN
+        -- Check if both keys and values arrays have lengths greater than 0
+        IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+            -- Iterate over each key-value pair and insert into the additional_attribute table
+            FOR i IN 1..array_length(keys, 1) LOOP
+                -- Insert into additional_attribute table and retrieve the ID
+                INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                -- Append the inserted ID to the inserted_ids array
+                inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                -- Insert into pluggable_additional_attribute table
+                INSERT INTO pluggable_additional_attribute (pluggable_id, additional_attribute_id)
+                VALUES (d_inserted_id, inserted_id);
+            END LOOP;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error inserting additional attributes for pluggable: %. Error: %', i_pluggablename, SQLERRM;
+    END;
+
+    -- If no exceptions, commit the transaction
+    o_success := 1; -- Success
+
+EXCEPTION
+    WHEN others THEN
+        -- If an exception occurs, rollback the transaction
+        ROLLBACK;
+        o_success := 0; -- Failure
+        RAISE;
 END;
 $$;
-
 ------------------- end------------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION global_search(table_name TEXT, column_name TEXT, search_term TEXT, filter_type TEXT DEFAULT 'contains')
@@ -711,23 +923,58 @@ CREATE OR REPLACE PROCEDURE insert_pluggabledevice(
     i_managementIp VARCHAR,
     i_order_id BIGINT,
     i_devicename VARCHAR,
-    inout o_success INT
+    keys VARCHAR[],
+    p_values VARCHAR[],
+    INOUT o_success INT
 )
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    inserted_ids INT[] := '{}';
+    inserted_id INT;
+    i INT;
+    d_inserted_id BIGINT;
 BEGIN
     -- Start a transaction
     BEGIN
-        -- Create pluggable
-        INSERT INTO pluggable (plugablename, position_on_card, position_on_device, vendor, pluggable_model, pluggable_part_number, operational_state, administrative_state, usage_state, href, management_ip, relation, cardname, cardlslotname, order_id, devicename)
-        VALUES (i_pluggablename, 0, i_positionOnDevice, i_vendor, i_pluggableModel, i_pluggablePartNumber, i_operationalState, i_administrativeState, i_usageState, i_href, i_managementIp, 'device-to-pluggable', null, null, i_order_id, i_devicename);
+        BEGIN
+            -- Create pluggable
+            INSERT INTO pluggable (plugablename, position_on_card, position_on_device, vendor, pluggable_model, pluggable_part_number, operational_state, administrative_state, usage_state, href, management_ip, relation, cardname, cardlslotname, order_id, devicename)
+            VALUES (i_pluggablename, 0, i_positionOnDevice, i_vendor, i_pluggableModel, i_pluggablePartNumber, i_operationalState, i_administrativeState, i_usageState, i_href, i_managementIp, 'DEVICE-TO-PLUGGABLE', NULL, NULL, i_order_id, i_devicename)
+            RETURNING id INTO d_inserted_id;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error inserting into Pluggable table for DEVICE: %, pluggablename: %. Error: %', i_devicename, i_pluggablename, SQLERRM;
+        END;
 
-        -- If no exceptions, commit the transaction
+        BEGIN
+            -- Insert additional attributes
+            IF array_length(keys, 1) > 0 AND array_length(p_values, 1) > 0 THEN
+                FOR i IN 1..array_length(keys, 1) LOOP
+                    BEGIN
+                        -- Insert into additional_attribute table and retrieve the ID
+                        INSERT INTO additional_attribute ("key", "value") VALUES (keys[i], p_values[i]) RETURNING id INTO inserted_id;
+                        -- Append the inserted ID to the inserted_ids array
+                        inserted_ids := inserted_ids || ARRAY[inserted_id];
+
+                        -- Insert into pluggable_additional_attribute table
+                        INSERT INTO pluggable_additional_attribute (pluggable_id, additional_attribute_id)
+                        VALUES (d_inserted_id, inserted_id);
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error inserting additional attribute key: %, value: %. Error: %', keys[i], p_values[i], SQLERRM;
+                    END;
+                END LOOP;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error inserting additional attributes for pluggable: %. Error: %', i_pluggablename, SQLERRM;
+        END;
+
         o_success := 1; -- Success
     EXCEPTION
-        WHEN others THEN
+        WHEN OTHERS THEN
             -- If an exception occurs, rollback the transaction
-            ROLLBACK;
             o_success := 0; -- Failure
             RAISE;
     END;

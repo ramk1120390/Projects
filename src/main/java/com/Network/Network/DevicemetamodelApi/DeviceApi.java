@@ -218,6 +218,7 @@ public class DeviceApi {
                                              @RequestParam("orderid") Long orderid,
                                              @RequestBody CardDto cardDto) {
         deviceName = deviceName.toLowerCase();
+
         try {
             Device device = deviceRepo.findByDevicename(deviceName);
             Optional<Order> order = orderRepo.findById(orderid);
@@ -254,7 +255,14 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("A card already exists on the given shelf, slot position. " +
                         "Existing card details: " + cardOnSlot);
             }
-
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (cardDto.getAdditionalAttributes() != null && !cardDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : cardDto.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             // Call the insertCard method from the repository
             int success = cardRepo.insertCard(
                     cardDto.getCardname(),
@@ -268,7 +276,10 @@ public class DeviceApi {
                     cardDto.getAdministrativeState(),
                     cardDto.getUsageState(),
                     cardDto.getHref(),
-                    orderid, 0
+                    orderid,
+                    A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]),
+                    0
             );
             if (success == 1) {
                 return ResponseEntity.ok("Card created successfully");
@@ -276,8 +287,15 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create card");
             }
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while Creating Card.");
+            }
         }
 
     }
@@ -390,11 +408,19 @@ public class DeviceApi {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Given card model is not associated with that device");
                 }
             }
-
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (cardDto.getAdditionalAttributes() != null && !cardDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : cardDto.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             // Call the repository method to update the card
             int success = cardRepo.updateCard(cardId, updatedCardName, updatedDeviceName, shelfPosition, slotPosition, vendor,
                     cardModel, cardPartNumber, operationalState, administrativeState, usageState, href,
-                    orderId, slotId, 0);
+                    orderId, slotId, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
 
             // Check the success flag returned by the repository method
             if (success == 1) {
@@ -404,11 +430,18 @@ public class DeviceApi {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request");
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while Creating Card.");
+            }
         }
     }
-
+//TODO passsing Device Name get card pass cardid
 
     @PostMapping("/CreatePortOnCard")
     public ResponseEntity<String> CreatePortOnCard(@RequestParam("cardid") Long cardid,
@@ -438,10 +471,19 @@ public class DeviceApi {
             if (exPort != null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given cardslot already found");
             }
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (portDTO.getAdditionalAttributes() != null && !portDTO.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : portDTO.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             int success = portRepo.insertPort(portDTO.getPortname(), portDTO.getPositionOnCard(), 0,
                     portDTO.getOperationalState(), portDTO.getAdministrativeState(), portDTO.getUsageState(),
                     portDTO.getHref(), portDTO.getPortSpeed(), portDTO.getCapacity(), portDTO.getManagementIp(),
-                    portDTO.getRelation(), cardName, cardslotname, orderid, null, cardid, 0);
+                    portDTO.getRelation(), cardName, cardslotname, orderid, null, cardid, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
             // Check the success flag returned by the repository method
             if (success == 1) {
                 return ResponseEntity.ok("port created successfully");
@@ -449,8 +491,15 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create port");
             }
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request");
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while Creating Card.");
+            }
         }
     }
 
@@ -488,11 +537,19 @@ public class DeviceApi {
             if (exPort != null) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to another port");
             }
-
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (portDTO.getAdditionalAttributes() != null && !portDTO.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : portDTO.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             int success = portRepo.insertDevicePort(portDTO.getPortname(), portDTO.getPositionOnDevice(),
                     portDTO.getOperationalState(), portDTO.getAdministrativeState(), portDTO.getUsageState(),
                     portDTO.getHref(), portDTO.getPortSpeed(), portDTO.getCapacity(), portDTO.getManagementIp(),
-                    portDTO.getRelation(), orderid, devicename, 0);
+                    portDTO.getRelation(), orderid, devicename, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
 
             if (success == 1) {
                 return ResponseEntity.ok("Port created successfully");
@@ -500,8 +557,15 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create port");
             }
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the request");
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while Creating Card.");
+            }
         }
     }
 //TODO if card name changed in card update need find with card id and update
@@ -535,11 +599,20 @@ public class DeviceApi {
             if (exPluggable != null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given cardslot already found");
             }
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (pluggableDTO.getAdditionalAttributes() != null && !pluggableDTO.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : pluggableDTO.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             int success = pluggableRepo.insertPluggable(pluggableDTO.getPlugablename(), pluggableDTO.getPositionOnCard(),
                     0, pluggableDTO.getVendor(), pluggableDTO.getPluggableModel(), pluggableDTO.getPluggablePartNumber(),
                     pluggableDTO.getOperationalState(), pluggableDTO.getAdministrativeState(), pluggableDTO.getUsageState(),
                     pluggableDTO.getHref(), pluggableDTO.getManagementIp(), pluggableDTO.getRelation(), cardName, cardslotname,
-                    orderid, null, cardid, 0);
+                    orderid, null, cardid, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
             if (success == 1) {
                 return ResponseEntity.ok("Pluggable created successfully");
             } else {
@@ -547,9 +620,16 @@ public class DeviceApi {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            if (e instanceof DataAccessException) {
+                // Handle data access exception (which may include SQL exceptions)
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Data access exception occurred: " + e.getMessage());
+            } else {
+                // Handle other exceptions
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred while Creating Card.");
+            }
         }
-        return null;
     }
 
     @PostMapping("/CreatePlugableOnDevice")
@@ -580,11 +660,20 @@ public class DeviceApi {
             if (exPluggable != null) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Given position already assigned to a pluggable device");
             }
+            List<String> A_A_V = new ArrayList<>();
+            List<String> A_A_K = new ArrayList<>();
+            if (pluggableDTO.getAdditionalAttributes() != null && !pluggableDTO.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : pluggableDTO.getAdditionalAttributes()) {
+                    A_A_K.add(additionalAttributeDTO.getKey());
+                    A_A_V.add(additionalAttributeDTO.getValue());
+                }
+            }
             int success = pluggableRepo.insertPluggabledevice(pluggableDTO.getPlugablename(), 0,
                     pluggableDTO.getPositionOnDevice(), pluggableDTO.getVendor(), pluggableDTO.getPluggableModel(),
                     pluggableDTO.getPluggablePartNumber(), pluggableDTO.getOperationalState(),
                     pluggableDTO.getAdministrativeState(), pluggableDTO.getUsageState(), pluggableDTO.getHref(),
-                    pluggableDTO.getManagementIp(), orderid, devicename, 0);
+                    pluggableDTO.getManagementIp(), orderid, devicename, A_A_K.toArray(new String[0]),
+                    A_A_V.toArray(new String[0]), 0);
             if (success == 1) {
                 return ResponseEntity.ok("Pluggable created successfully");
             } else {

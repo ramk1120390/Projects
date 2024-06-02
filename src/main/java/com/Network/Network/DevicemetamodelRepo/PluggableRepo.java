@@ -28,7 +28,7 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
     @Query(value = "SELECT * FROM pluggable WHERE plugablename = ?1 AND cardname = ?2", nativeQuery = true)
     Pluggable findPluggableByCardNameAndDeviceName(String portName, String cardName);
 
-    @Query(value = "CALL insert_pluggable(:i_pluggablename, :i_positionOnCard, :i_positionOnDevice, :i_vendor, :i_pluggableModel, :i_pluggablePartNumber, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_managementIp, :i_relation, :i_cardname, :i_cardSlotName, :i_order_id, :i_devicename, :i_cardid, :o_success)", nativeQuery = true)
+    @Query(value = "CALL insert_pluggable(:i_pluggablename, :i_positionOnCard, :i_positionOnDevice, :i_vendor, :i_pluggableModel, :i_pluggablePartNumber, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_managementIp, :i_relation, :i_cardname, :i_cardSlotName, :i_order_id, :i_devicename, :i_cardid, :keys, :p_values, :o_success)", nativeQuery = true)
     int insertPluggable(
             @Param("i_pluggablename") String iPortname,
             @Param("i_positionOnCard") Integer iPositionOnCard,
@@ -47,6 +47,8 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             @Param("i_order_id") Long iOrderId,
             @Param("i_devicename") String iDevicename,
             @Param("i_cardid") Long iCardid,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("o_success") int oSuccess
     );
 
@@ -60,7 +62,7 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
     Pluggable findByDeviceNameAndPluggableName(@Param("deviceName") String deviceName, @Param("pluggableName") String pluggableName);
 
 
-    @Query(value = "CALL insert_pluggabledevice(:i_pluggablename, :i_positionOnCard, :i_positionOnDevice, :i_vendor, :i_pluggableModel, :i_pluggablePartNumber, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_managementIp, :i_order_id, :i_devicename, :o_success)", nativeQuery = true)
+    @Query(value = "CALL insert_pluggabledevice(:i_pluggablename, :i_positionOnCard, :i_positionOnDevice, :i_vendor, :i_pluggableModel, :i_pluggablePartNumber, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_managementIp, :i_order_id, :i_devicename, :keys, :p_values, :o_success)", nativeQuery = true)
     int insertPluggabledevice(
             @Param("i_pluggablename") String i_pluggablename,
             @Param("i_positionOnCard") Integer i_positionOnCard,
@@ -75,6 +77,8 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             @Param("i_managementIp") String i_managementIp,
             @Param("i_order_id") Long i_order_id,
             @Param("i_devicename") String i_devicename,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("o_success") Integer o_success
     );
 
@@ -141,7 +145,7 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
 
     @Query(value = "SELECT p FROM Device d INNER JOIN d.pluggables p WHERE p.devicename = :deviceName " +
             "UNION " +
-            "SELECT p2 FROM CardSlot cs INNER JOIN cs.pluggables p2 WHERE p2.cardlslotname IN :cardSlotNames",nativeQuery = true)
+            "SELECT p2 FROM CardSlot cs INNER JOIN cs.pluggables p2 WHERE p2.cardlslotname IN :cardSlotNames", nativeQuery = true)
     List<Pluggable> findPluggablesByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
                                                                @Param("cardSlotNames") List<String> cardSlotNames);
 

@@ -17,7 +17,7 @@ public interface CardRepo extends JpaRepository<Card, String> {
 
     @Query(value = "CALL insert_card(:i_cardname, :i_devicename, :i_shelfPosition, :i_slotPosition, "
             + ":i_vendor, :i_cardModel, :i_cardPartNumber, :i_operationalState, :i_administrativeState, "
-            + ":i_usageState, :i_href, :i_orderid, :success)", nativeQuery = true)
+            + ":i_usageState, :i_href, :i_orderid, :keys, :p_values, :success)", nativeQuery = true)
     int insertCard(
             @Param("i_cardname") String cardName,
             @Param("i_devicename") String deviceName,
@@ -31,12 +31,14 @@ public interface CardRepo extends JpaRepository<Card, String> {
             @Param("i_usageState") String usageState,
             @Param("i_href") String href,
             @Param("i_orderid") Long orderId,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success
     );
 
     @Query(value = "CALL update_card(:i_cardid, :i_cardname, :i_devicename, :i_shelfPosition, :i_slotPosition, "
             + ":i_vendor, :i_cardModel, :i_cardPartNumber, :i_operationalState, :i_administrativeState, "
-            + ":i_usageState, :i_href, :i_orderid, :i_slotid, :success)", nativeQuery = true)
+            + ":i_usageState, :i_href, :i_orderid, :i_slotid, :keys, :p_values, :success)", nativeQuery = true)
     int updateCard(
             @Param("i_cardid") Long cardId,
             @Param("i_cardname") String cardName,
@@ -52,6 +54,8 @@ public interface CardRepo extends JpaRepository<Card, String> {
             @Param("i_href") String href,
             @Param("i_orderid") Long orderId,
             @Param("i_slotid") Long slotId,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success
     );
 

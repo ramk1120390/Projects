@@ -45,6 +45,10 @@ public class Slot implements Serializable {
         this.additionalAttributes = additionalAttributes;
     }
 
+    public Slot() {
+        super();
+    }
+
     public List<AdditionalAttribute> getAdditionalAttributes() {
         return additionalAttributes;
     }

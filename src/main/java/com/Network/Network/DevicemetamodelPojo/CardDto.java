@@ -4,6 +4,8 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+
 @Data
 @Getter
 @Setter
@@ -23,6 +25,15 @@ public class CardDto {
     private String href;
     private Long orderId;
     private  String realation;
+    private ArrayList<AdditionalAttribute> additionalAttributes;
+
+    public ArrayList<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(ArrayList<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 
     public Long getId() {
         return id;

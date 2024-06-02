@@ -1,5 +1,8 @@
 package com.Network.Network.DevicemetamodelPojo;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class PluggableDTO {
     private String plugablename;
     private Integer positionOnCard;
@@ -17,6 +20,15 @@ public class PluggableDTO {
     private String cardSlotName;
     private Long orderId;
     private String deviceName;
+    private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+
+    public List<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 
     public String getPlugablename() {
         return plugablename;

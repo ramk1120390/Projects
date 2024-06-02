@@ -22,7 +22,7 @@ public interface PortRepo extends JpaRepository<Port, Long> {
     @Query(value = "SELECT * FROM port WHERE cardlslotname = ?1 AND position_on_card = ?2", nativeQuery = true)
     Port findPortsByCardSlotNameAndPositionOnCard(String cardSlotName, Integer positionOnCard);
 
-    @Query(value = "CALL insert_port(:i_portname, :i_positionOnCard, :i_positionOnDevice, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_PortSpeed, :i_Capacity, :i_managementIp, :i_relation, :i_cardname, :i_cardSlotName, :i_order_id, :i_devicename, :i_cardid, :success)", nativeQuery = true)
+    @Query(value = "CALL insert_port(:i_portname, :i_positionOnCard, :i_positionOnDevice, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_PortSpeed, :i_Capacity, :i_managementIp, :i_relation, :i_cardname, :i_cardSlotName, :i_order_id, :i_devicename, :i_cardid, :keys, :p_values, :success)", nativeQuery = true)
     int insertPort(
             @Param("i_portname") String portname,
             @Param("i_positionOnCard") Integer positionOnCard,
@@ -40,6 +40,8 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("i_order_id") Long orderId,
             @Param("i_devicename") String devicename,
             @Param("i_cardid") Long cardid,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success
     );
 
@@ -55,7 +57,7 @@ public interface PortRepo extends JpaRepository<Port, Long> {
     @Query(value = "SELECT * FROM port WHERE devicename = :devicename AND position_on_device = :position_on_device", nativeQuery = true)
     Port findByDeviceNameAndPositionOnDevice(@Param("devicename") String devicename, @Param("position_on_device") Integer positionOnDevice);
 
-    @Query(value = "CALL insert_deviceport(:i_portname, :i_positionOnDevice, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_PortSpeed, :i_Capacity, :i_managementIp, :i_relation, :i_order_id, :i_devicename, :o_success)", nativeQuery = true)
+    @Query(value = "CALL insert_deviceport(:i_portname, :i_positionOnDevice, :i_operationalState, :i_administrativeState, :i_usageState, :i_href, :i_PortSpeed, :i_Capacity, :i_managementIp, :i_relation, :i_order_id, :i_devicename, :keys, :p_values, :o_success)", nativeQuery = true)
     int insertDevicePort(@Param("i_portname") String portname,
                          @Param("i_positionOnDevice") Integer positionOnDevice,
                          @Param("i_operationalState") String operationalState,
@@ -68,6 +70,8 @@ public interface PortRepo extends JpaRepository<Port, Long> {
                          @Param("i_relation") String relation,
                          @Param("i_order_id") Long orderId,
                          @Param("i_devicename") String devicename,
+                         @Param("keys") String[] keys,
+                         @Param("p_values") String[] pValues,
                          @Param("o_success") Integer success);
 
     Port findByPortid(Long portid);

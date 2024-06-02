@@ -1,5 +1,7 @@
 package com.Network.Network.DevicemetamodelPojo;
 
+import java.util.ArrayList;
+
 public class PortDTO {
     private Long portid;
     private String portname;
@@ -18,7 +20,15 @@ public class PortDTO {
     private String cardslotname; // Assuming you want to include the ID of the card slot
     private Long orderId; // Assuming you want to include the ID of the order
     private String deviceName; // Assuming you want to include the name of the device
+    private ArrayList<AdditionalAttribute> additionalAttributes;
 
+    public ArrayList<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(ArrayList<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
     public Long getPortid() {
         return portid;
     }
