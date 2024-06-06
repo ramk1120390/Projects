@@ -178,4 +178,12 @@ public class Pluggable implements Serializable {
     public void setDevice(Device device) {
         this.device = device;
     }
+
+    public List<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 }

@@ -1,7 +1,9 @@
 package com.Network.Network.DevicemetamodelRepo;
 
 import com.Network.Network.DevicemetamodelPojo.Card;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
@@ -64,6 +66,10 @@ public interface CardRepo extends JpaRepository<Card, String> {
 
     Card findByCardid(Long cardid);
 
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM Card c WHERE c.cardname = :cardname AND c.devicename = :devicename", nativeQuery = true)
+    void deleteByCardnameAndDevicename(@Param("cardname") String cardname, @Param("devicename") String devicename);
 
 
 }

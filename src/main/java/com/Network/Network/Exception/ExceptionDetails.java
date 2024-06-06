@@ -1,9 +1,6 @@
 package com.Network.Network.Exception;
 
 
-/**
- * POJO for setting exception details
- */
 public class ExceptionDetails {
     String exceptionId;
 

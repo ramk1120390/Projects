@@ -6,8 +6,10 @@ import com.Network.Network.DevicemetamodelPojo.Port;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -84,7 +86,7 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
 
     Pluggable findById(long id);
 
-    @Query(value = "CALL update_pluggable_on_device(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnDevice, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_deviceName, :success)", nativeQuery = true)
+    @Query(value = "CALL update_pluggable_on_device(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnDevice, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_deviceName, :keys, :p_values, :success)", nativeQuery = true)
     int updatePluggableOnDevice(
             @Param("p_pluggableid") Long pluggableId,
             @Param("p_pluggablename") String pluggableName,
@@ -99,9 +101,11 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             @Param("p_vendor") String vendor,
             @Param("p_orderId") Long orderId,
             @Param("p_deviceName") String deviceName,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success);
 
-    @Query(value = "CALL update_pluggable_on_card(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnCard, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_cardname, :p_cardslotname, :p_deviceName, :success)", nativeQuery = true)
+    @Query(value = "CALL update_pluggable_on_card(:p_pluggableid, :p_pluggablename, :p_pluggableModel, :p_pluggablePartNumber, :p_positionOnCard, :p_operationalState, :p_administrativeState, :p_usageState, :p_href, :p_managementIp, :p_vendor, :p_orderId, :p_cardname, :p_cardslotname, :p_deviceName, :keys, :p_values, :success)", nativeQuery = true)
     int updatePluggableOnCard(
             @Param("p_pluggableid") Long pluggableId,
             @Param("p_pluggablename") String pluggableName,
@@ -118,6 +122,8 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             @Param("p_cardname") String cardName,
             @Param("p_cardslotname") String cardSlotName,
             @Param("p_deviceName") String deviceName,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success);
 
     @Query(value = "SELECT p.* " +
@@ -148,6 +154,16 @@ public interface PluggableRepo extends JpaRepository<Pluggable, Long> {
             "SELECT p2 FROM CardSlot cs INNER JOIN cs.pluggables p2 WHERE p2.cardlslotname IN :cardSlotNames", nativeQuery = true)
     List<Pluggable> findPluggablesByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
                                                                @Param("cardSlotNames") List<String> cardSlotNames);
+
+    @Query(value = "SELECT p FROM Pluggable p WHERE p.cardlslotname = :cardlslotname AND p.plugablename = :plugablename " +
+            "AND p.devicename = :devicename", nativeQuery = true)
+    Pluggable findPluggableByCardSlotNameAndPlugableNameAndDeviceName(@Param("cardlslotname") String cardlslotname,
+                                                                      @Param("plugablename") String plugablename,
+                                                                      @Param("devicename") String devicename);
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM pluggable p WHERE p.id = :pluggableid", nativeQuery = true)
+    void deleteBypluggableByid(@Param("pluggableid") long pluggableid);
 
 
 }

@@ -4,7 +4,9 @@ import com.Network.Network.DevicemetamodelPojo.Card;
 import com.Network.Network.DevicemetamodelPojo.CardSlot;
 import com.Network.Network.DevicemetamodelPojo.Pluggable;
 import com.Network.Network.DevicemetamodelPojo.Port;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
@@ -77,7 +79,7 @@ public interface PortRepo extends JpaRepository<Port, Long> {
     Port findByPortid(Long portid);
 
     @Query(value = "CALL update_port_on_device(:p_portid, :p_portname, :p_positionOnDevice, :p_portType, :p_operationalState, :p_administrativeState, "
-            + ":p_usageState, :p_href, :p_portSpeed, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :success)",
+            + ":p_usageState, :p_href, :p_portSpeed, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :keys, :p_values, :success)",
             nativeQuery = true)
     int updatePortOnDevice(@Param("p_portid") Long portId,
                            @Param("p_portname") String portName,
@@ -92,10 +94,12 @@ public interface PortRepo extends JpaRepository<Port, Long> {
                            @Param("p_managementIp") String managementIp,
                            @Param("p_orderId") Long orderId,
                            @Param("p_deviceName") String deviceName,
+                           @Param("keys") String[] keys,
+                           @Param("p_values") String[] pValues,
                            @Param("success") Integer success);
 
     @Query(value = "CALL update_port_on_card(:p_portid, :p_portname, :p_positionOnCard, :p_portType, :p_operationalState, :p_administrativeState, "
-            + ":p_usageState, :p_href, :p_portSpeed, :p_cardname, :p_cardslotname, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :success)",
+            + ":p_usageState, :p_href, :p_portSpeed, :p_cardname, :p_cardslotname, :p_capacity, :p_managementIp, :p_orderId, :p_deviceName, :keys, :p_values, :success)",
             nativeQuery = true)
     int updatePortOnCard(
             @Param("p_portid") Long p_portid,
@@ -113,8 +117,11 @@ public interface PortRepo extends JpaRepository<Port, Long> {
             @Param("p_managementIp") String p_managementIp,
             @Param("p_orderId") Long p_orderId,
             @Param("p_deviceName") String p_deviceName,
+            @Param("keys") String[] keys,
+            @Param("p_values") String[] pValues,
             @Param("success") Integer success
     );
+
 
     @Query(value = "SELECT p.* " +
             "FROM port p " +
@@ -141,7 +148,18 @@ public interface PortRepo extends JpaRepository<Port, Long> {
 
     @Query(value = "SELECT p FROM Device d INNER JOIN d.ports p WHERE p.devicename = :deviceName " +
             "UNION " +
-            "SELECT p2 FROM CardSlot cs INNER JOIN cs.ports p2 WHERE p2.cardlslotname IN :cardSlotNames",nativeQuery = true)
+            "SELECT p2 FROM CardSlot cs INNER JOIN cs.ports p2 WHERE p2.cardlslotname IN :cardSlotNames", nativeQuery = true)
     List<Port> findPortsByDeviceNameAndCardSlotNames(@Param("deviceName") String deviceName,
                                                      @Param("cardSlotNames") List<String> cardSlotNames);
+
+    @Query(value = "SELECT p FROM Port p WHERE p.cardlslotname = :cardlslotname AND p.portname = :portname " +
+            "AND p.devicename = :devicename", nativeQuery = true)
+    Port findPortsByCardSlotNameAndPortNameAndDeviceName(@Param("cardlslotname") String cardlslotname,
+                                                         @Param("portname") String portname,
+                                                         @Param("devicename") String devicename);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM Port p WHERE p.portid = :portid", nativeQuery = true)
+    void deleteByPortid(@Param("portid") long portid);
 }

@@ -2,6 +2,7 @@ package com.Network.Network.DevicemetamodelRepo;
 
 import com.Network.Network.DevicemetamodelPojo.LogicalConnection;
 import com.Network.Network.DevicemetamodelPojo.LogicalPort;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +25,8 @@ public interface LogicalConnectionRepo extends JpaRepository<LogicalConnection, 
             @Param("keys") String[] keys,
             @Param("p_values") String[] values,
             @Param("success") int success);
+    @Transactional
+    void deleteByLogicalconnection_id(Long id);
 }
 
 

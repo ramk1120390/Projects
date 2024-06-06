@@ -47,7 +47,13 @@ public class Card implements Serializable {
     )
     private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
 
+    public List<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
 
+    public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 
     public Long getCardid() {
         return cardid;

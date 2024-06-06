@@ -1,6 +1,7 @@
 package com.Network.Network.DevicemetamodelRepo;
 
 import com.Network.Network.DevicemetamodelPojo.PhysicalConnection;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,4 +27,7 @@ public interface PhysicalConnectionRepo extends JpaRepository<PhysicalConnection
 
     @Query(value = "SELECT CONCAT(pc.devicea, ',', pc.deviceb) FROM physical_connection pc WHERE pc.name = :name", nativeQuery = true)
     String findConcatenatedDevicesByName(@Param("name") String name);
+
+    @Transactional
+    void deleteByPhysicalconnection_id(Long id);
 }

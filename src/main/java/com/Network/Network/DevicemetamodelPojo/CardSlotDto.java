@@ -1,17 +1,13 @@
 package com.Network.Network.DevicemetamodelPojo;
 
-import jakarta.persistence.*;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-public class CardSlot implements Serializable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class CardSlotDto {
+
     private Long cardslotid;
-    @Column(nullable = false, unique = true)
+
     private String name;
     private int slotPosition;
     private String operationalState;
@@ -19,19 +15,10 @@ public class CardSlot implements Serializable {
     private String usageState;
     private String href;
     private String realation;
-
     private String cardname;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cardid", referencedColumnName = "cardid")
-    private Card card;
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "cardslot_additional_attribute",
-            joinColumns = @JoinColumn(name = "cardslot_id"),
-            inverseJoinColumns = @JoinColumn(name = "additional_attribute_id")
-    )
+    private Card cardid;
     private List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+
     public Long getCardslotid() {
         return cardslotid;
     }
@@ -104,12 +91,12 @@ public class CardSlot implements Serializable {
         this.cardname = cardname;
     }
 
-    public Card getCard() {
-        return card;
+    public Card getCardid() {
+        return cardid;
     }
 
-    public void setCard(Card card) {
-        this.card = card;
+    public void setCardid(Card cardid) {
+        this.cardid = cardid;
     }
 
     public List<AdditionalAttribute> getAdditionalAttributes() {

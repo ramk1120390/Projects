@@ -996,68 +996,143 @@ CREATE OR REPLACE PROCEDURE update_port_on_device(
     IN p_managementIp VARCHAR(255),
     IN p_orderId BIGINT,
     IN p_deviceName VARCHAR(255),
+    IN keys VARCHAR[],
+    IN p_values VARCHAR[],
     INOUT success INT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     existcardslotname VARCHAR(255);
+    existing_id BIGINT;
+    inserted_id BIGINT;
 BEGIN
     -- Initialize success flag
     success := 0;
+
     -- Begin transaction
-    BEGIN       
-        -- Check if data exists at the specified position
-      IF EXISTS (
-    SELECT 1 
-    FROM port 
-    WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
-) THEN
-    -- If data exists, raise an exception
-    RAISE EXCEPTION 'Port device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
-END IF;
+    BEGIN
+        -- Check if data exists at the specified position for port
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM port
+                WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+            ) THEN
+                RAISE EXCEPTION 'Port device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error checking existing port data: %', SQLERRM;
+        END;
 
-IF EXISTS (
-    SELECT 1 
-    FROM pluggable 
-    WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
-) THEN
-    -- If data exists, raise an exception
-    RAISE EXCEPTION 'Pluggable device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
-END IF;
+        -- Check if data exists at the specified position for pluggable
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM pluggable
+                WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
+            ) THEN
+                RAISE EXCEPTION 'Pluggable device % already exists at the specified position on device %', p_deviceName, p_positionOnDevice;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error checking existing pluggable data: %', SQLERRM;
+        END;
 
-        
         -- Get the cardslotname associated with the portid
-        SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+        BEGIN
+            SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error fetching card slot name for portid %: %', p_portid, SQLERRM;
+        END;
 
         -- Perform an update in the port table
-        UPDATE port
-        SET portname = p_portname,
-            position_on_card = 0,
-            position_on_device = p_positionOnDevice,
-            port_type = 'device-to-port',
-            operational_state = p_operationalState,
-            administrative_state = p_administrativeState,
-            usage_state = p_usageState,
-            href = p_href,
-            port_speed = p_portSpeed,
-            capacity = p_capacity,
-            management_ip = p_managementIp,
-            relation = 'device-to-port',
-            cardname = null,
-            cardlslotname = null,  -- Set cardslotname to null
-            order_id = p_orderId,
-            devicename = p_deviceName
-        WHERE portid = p_portid;
-        
-        -- If the retrieved cardslotname exists, delete the corresponding record from the card_slot table
-        IF existcardslotname IS NOT NULL THEN
-            DELETE FROM card_slot WHERE name = existcardslotname;
-        END IF;
-        
-        success := 1; -- Set success flag to 1 if the update is successful
+        BEGIN
+            UPDATE port
+            SET portname = p_portname,
+                position_on_card = 0,
+                position_on_device = p_positionOnDevice,
+                port_type = 'device-to-port',
+                operational_state = p_operationalState,
+                administrative_state = p_administrativeState,
+                usage_state = p_usageState,
+                href = p_href,
+                port_speed = p_portSpeed,
+                capacity = p_capacity,
+                management_ip = p_managementIp,
+                relation = 'DEVICE_TO_PORT',
+                cardname = NULL,
+                cardlslotname = NULL,  -- Set cardslotname to null
+                order_id = p_orderId,
+                devicename = p_deviceName
+            WHERE portid = p_portid;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error updating port table: %', SQLERRM;
+        END;
 
-        
+        -- If the retrieved cardslotname exists, delete the corresponding record from the card_slot table
+        BEGIN
+            IF existcardslotname IS NOT NULL THEN
+                DELETE FROM card_slot WHERE name = existcardslotname;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error deleting card slot: %', SQLERRM;
+        END;
+
+        -- Iterate over each key-value pair for additional attributes
+        FOR i IN 1..array_length(keys, 1) LOOP
+            BEGIN
+                -- Check if the key-value pair already exists for this device
+                SELECT id INTO existing_id
+                FROM additional_attribute aa
+                JOIN port_additional_attribute paa ON aa.id = paa.additional_attribute_id
+                WHERE paa.port_id = p_portid
+                  AND aa."key" = keys[i]
+                  AND aa."value" = p_values[i];
+
+                IF existing_id IS NOT NULL THEN
+                    -- Update existing additional attribute
+                    BEGIN
+                        UPDATE port_additional_attribute
+                        SET port_id = p_portid
+                        WHERE port_id = p_portid AND additional_attribute_id = existing_id;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error updating additional attribute: %, % Error: %', keys[i], p_values[i], SQLERRM;
+                    END;
+                ELSE
+                    -- Insert new additional attribute
+                    BEGIN
+                        INSERT INTO additional_attribute ("key", "value")
+                        VALUES (keys[i], p_values[i])
+                        RETURNING id INTO inserted_id;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error inserting additional attribute: %, % Error: %', keys[i], p_values[i], SQLERRM;
+                    END;
+
+                    -- Insert into port_additional_attribute table
+                    BEGIN
+                        INSERT INTO port_additional_attribute (port_id, additional_attribute_id)
+                        VALUES (p_portid, inserted_id);
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error inserting into port_additional_attribute: % Error: %', p_portid, SQLERRM;
+                    END;
+                END IF;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Error processing key-value pair: %, % Error: %', keys[i], p_values[i], SQLERRM;
+            END;
+        END LOOP;
+
+        -- If all operations were successful, set success to 1
+        success := 1;
+
     EXCEPTION
         WHEN OTHERS THEN
             -- If any exception occurs, rollback transaction and set success flag to 0
@@ -1086,6 +1161,8 @@ CREATE OR REPLACE PROCEDURE update_port_on_card(
     IN p_managementIp VARCHAR(255),
     IN p_orderId BIGINT,
     IN p_deviceName VARCHAR(255),
+    IN keys VARCHAR[],
+    IN p_values VARCHAR[],
     INOUT success INT
 )
 LANGUAGE plpgsql
@@ -1094,78 +1171,162 @@ DECLARE
     existcardslotname VARCHAR(255);
     d_cardid BIGINT;
     d_cardslotname VARCHAR(255);
+    existing_id BIGINT;
+    inserted_id BIGINT;
 BEGIN
     -- Initialize success flag
     success := 0;
+
     -- Begin transaction
     BEGIN
         -- Get the cardslotname associated with the portid
-        SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+        BEGIN
+            SELECT cardlslotname INTO existcardslotname FROM port WHERE portid = p_portid;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error fetching card slot name for portid %: %', p_portid, SQLERRM;
+        END;
 
         -- Check if cardid exists for the provided cardname and devicename
-        SELECT cardid INTO d_cardid FROM card WHERE cardname = p_cardname AND devicename = p_deviceName;
-        IF NOT FOUND THEN
-            -- If cardid not found, raise an exception
-            RAISE EXCEPTION 'Cardid not found for cardname % and devicename %', p_cardname, p_deviceName;
-        END IF;
+        BEGIN
+            SELECT cardid INTO d_cardid FROM card WHERE cardname = p_cardname AND devicename = p_deviceName;
+            IF NOT FOUND THEN
+                -- If cardid not found, raise an exception
+                RAISE EXCEPTION 'Cardid not found for cardname % and devicename %', p_cardname, p_deviceName;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error checking cardid for cardname % and devicename %: %', p_cardname, p_deviceName, SQLERRM;
+        END;
 
         -- Construct the full card slot name
         d_cardslotname := p_cardname || d_cardid || '/' || p_positionOnCard;
 
         -- Check if the retrieved cardslotname exists and is different from the input cardslotname
-       
         IF existcardslotname IS NULL THEN
             -- If the cardslotname does not exist, insert a new record into the card_slot table
-            INSERT INTO card_slot("name", slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
-            VALUES (d_cardslotname, p_positionOnCard, p_operationalState, p_administrativeState, p_usageState, p_href, p_cardname, 'card-to-cardslot', d_cardid);
+            BEGIN
+                INSERT INTO card_slot("name", slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
+                VALUES (d_cardslotname, p_positionOnCard, p_operationalState, p_administrativeState, p_usageState, p_href, p_cardname, 'card-to-cardslot', d_cardid);
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Error inserting new card slot: %', SQLERRM;
+            END;
         ELSE
             -- If the cardslotname exists, check if it's different from the generated cardslotname
             IF existcardslotname != d_cardslotname THEN
                 -- Check if the generated cardslotname already exists in the card_slot table
-                PERFORM * FROM card_slot WHERE "name" = p_cardslotname;
-                -- If a record exists, throw an exception indicating the cardslot is already occupied
-                IF FOUND THEN
-                    RAISE EXCEPTION 'Given cardslot already occupied';
-                END IF;
+                BEGIN
+                    PERFORM * FROM card_slot WHERE "name" = p_cardslotname;
+                    -- If a record exists, throw an exception indicating the cardslot is already occupied
+                    IF FOUND THEN
+                        RAISE EXCEPTION 'Given cardslot already occupied';
+                    END IF;
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE EXCEPTION 'Error checking card slot name: %', SQLERRM;
+                END;
             END IF;
 
             -- Update the corresponding record in the card_slot table
-            UPDATE card_slot
-            SET "name" = p_cardslotname,
-                slot_position = p_positionOnCard,
+            BEGIN
+                UPDATE card_slot
+                SET "name" = p_cardslotname,
+                    slot_position = p_positionOnCard,
+                    operational_state = p_operationalState,
+                    administrative_state = p_administrativeState,
+                    usage_state = p_usageState,
+                    href = p_href,
+                    cardname = p_cardname,
+                    realation = 'CARDSLOT-TO-PORT', -- Corrected the column name
+                    cardid = d_cardid
+                WHERE "name" = existcardslotname;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Error updating card slot: %', SQLERRM;
+            END;
+        END IF;
+
+        -- Perform an update in the port table
+        BEGIN
+            UPDATE port
+            SET portname = p_portname,
+                position_on_card = p_positionOnCard,
+                position_on_device = 0,
+                port_type = 'card-to-port',
                 operational_state = p_operationalState,
                 administrative_state = p_administrativeState,
                 usage_state = p_usageState,
                 href = p_href,
+                port_speed = p_portSpeed,
+                capacity = p_capacity,
+                management_ip = p_managementIp,
+                relation = 'CARDSLOT-TO-PORT',
                 cardname = p_cardname,
-                realation = 'card-to-port', -- Corrected the column name
-                cardid = d_cardid
-            WHERE "name" = existcardslotname;
-        END IF;
+                cardlslotname = p_cardslotname,
+                order_id = p_orderId,
+                devicename = NULL -- Changed 'null' to NULL
+            WHERE portid = p_portid;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error updating port table: %', SQLERRM;
+        END;
 
-        -- Perform an update in the port table
-        UPDATE port
-        SET portname = p_portname,
-            position_on_card = p_positionOnCard,
-            position_on_device = 0,
-            port_type = 'card-to-port',
-            operational_state = p_operationalState,
-            administrative_state = p_administrativeState,
-            usage_state = p_usageState,
-            href = p_href,
-            port_speed = p_portSpeed,
-            capacity = p_capacity,
-            management_ip = p_managementIp,
-            relation = 'cardslot-to-port',
-            cardname = p_cardname,
-            cardlslotname = p_cardslotname,
-            order_id = p_orderId,
-            devicename = NULL -- Changed 'null' to NULL
-        WHERE portid = p_portid;
-        
+        -- Iterate over each key-value pair for additional attributes
+        FOR i IN 1..array_length(keys, 1) LOOP
+            BEGIN
+                -- Check if the key-value pair already exists for this device
+                BEGIN
+                    SELECT id INTO existing_id
+                    FROM additional_attribute aa
+                    JOIN port_additional_attribute paa ON aa.id = paa.additional_attribute_id
+                    WHERE paa.port_id = p_portid
+                      AND aa."key" = keys[i]
+                      AND aa."value" = p_values[i];
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RAISE EXCEPTION 'Error checking existing key-value pair: %, % Error: %', keys[i], p_values[i], SQLERRM;
+                END;
+
+                IF existing_id IS NOT NULL THEN
+                    -- Update existing additional attribute
+                    BEGIN
+                        UPDATE port_additional_attribute
+                        SET port_id = p_portid
+                        WHERE port_id = p_portid AND additional_attribute_id = existing_id;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error updating additional attribute: %, % Error: %', keys[i], p_values[i], SQLERRM;
+                    END;
+                ELSE
+                    -- Insert new additional attribute
+                    BEGIN
+                        INSERT INTO additional_attribute ("key", "value")
+                        VALUES (keys[i], p_values[i])
+                        RETURNING id INTO inserted_id;
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error inserting additional attribute: %, % Error: %', keys[i], p_values[i], SQLERRM;
+                    END;
+
+                    -- Insert into port_additional_attribute table
+                    BEGIN
+                        INSERT INTO port_additional_attribute (port_id, additional_attribute_id)
+                        VALUES (p_portid, inserted_id);
+                    EXCEPTION
+                        WHEN OTHERS THEN
+                            RAISE EXCEPTION 'Error inserting into port_additional_attribute: % Error: %', p_portid, SQLERRM;
+                    END;
+                END IF;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Error processing key-value pair: %, % Error: %', keys[i], p_values[i], SQLERRM;
+            END;
+        END LOOP;
+
         -- Set success flag to 1 if the update is successful
         success := 1;
-        
+
     EXCEPTION
         WHEN OTHERS THEN
             -- If any exception occurs, rollback transaction and set success flag to 0
@@ -1191,21 +1352,26 @@ CREATE OR REPLACE PROCEDURE update_pluggable_on_device(
     IN p_vendor VARCHAR(255),
     IN p_orderId BIGINT,
     IN p_deviceName VARCHAR(255),
+    IN keys VARCHAR[],
+    IN p_values VARCHAR[],
     INOUT success INT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     existcardlslotname VARCHAR(255);
+    existing_id BIGINT;
+    inserted_id BIGINT;
 BEGIN
     -- Initialize success flag
     success := 0;
+
     -- Begin transaction
-    BEGIN       
+    BEGIN
         -- Check if data exists at the specified position
         IF EXISTS (
-            SELECT 1 
-            FROM pluggable 
+            SELECT 1
+            FROM pluggable
             WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
         ) THEN
             -- If data exists, raise an exception
@@ -1213,8 +1379,8 @@ BEGIN
         END IF;
 
         IF EXISTS (
-            SELECT 1 
-            FROM port 
+            SELECT 1
+            FROM port
             WHERE devicename = p_deviceName AND position_on_device = p_positionOnDevice
         ) THEN
             -- If data exists, raise an exception
@@ -1247,12 +1413,53 @@ BEGIN
         -- If the retrieved cardlslotname exists, delete the corresponding record from the card_slot table
         IF existcardlslotname IS NOT NULL THEN
             DELETE FROM card_slot WHERE name = existcardlslotname;
+            IF NOT FOUND THEN
+                RAISE EXCEPTION 'Failed to delete card slot';
+            END IF;
         END IF;
+
+        -- Iterate over each key-value pair for additional attributes
+        FOR i IN 1..array_length(keys, 1) LOOP
+            BEGIN
+                -- Check if the key-value pair already exists for this device
+                SELECT id INTO existing_id
+                    FROM additional_attribute aa
+                    JOIN pluggable_additional_attribute paa ON aa.id = paa.additional_attribute_id
+                    WHERE paa.pluggable_id = p_pluggableid
+                      AND aa."key" = keys[i]
+                      AND aa."value" = p_values[i];
+
+                IF existing_id IS NOT NULL THEN
+                    -- Update existing additional attribute
+                    UPDATE pluggable_additional_attribute
+                    SET pluggable_id = p_pluggableid
+                    WHERE pluggable_id = p_pluggableid AND additional_attribute_id = existing_id;
+                    IF NOT FOUND THEN
+                        RAISE EXCEPTION 'Failed to update pluggable_additional_attribute';
+                    END IF;
+                ELSE
+                    -- Insert new additional attribute
+                    INSERT INTO additional_attribute ("key", "value")
+                    VALUES (keys[i], p_values[i])
+                    RETURNING id INTO inserted_id;
+
+                    -- Insert into port_additional_attribute table
+                    INSERT INTO pluggable_additional_attribute (pluggable_id, additional_attribute_id)
+                    VALUES (p_pluggableid, inserted_id);
+                    IF NOT FOUND THEN
+                        RAISE EXCEPTION 'Failed to insert into Pluggable_additional_attribute';
+                    END IF;
+                END IF;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    RAISE EXCEPTION 'Error processing key-value pair: %, % Error: %', keys[i], p_values[i], SQLERRM;
+            END;
+        END LOOP;
 
         success := 1; -- Set success flag to 1 if the update is successful
 
     EXCEPTION
-        WHEN OTHERS THEN
+        WHEN others THEN
             -- If any exception occurs, rollback transaction and set success flag to 0
             ROLLBACK;
             success := 0;
@@ -1278,6 +1485,8 @@ CREATE OR REPLACE PROCEDURE update_pluggable_on_card(
     IN p_cardname VARCHAR(255),
     IN p_cardslotname VARCHAR(255),
     IN p_deviceName VARCHAR(255),
+    IN p_keys VARCHAR[],
+    IN p_values VARCHAR[],
     INOUT success INT
 )
 LANGUAGE plpgsql
@@ -1286,35 +1495,51 @@ DECLARE
     existcardslotname VARCHAR(255);
     d_cardid BIGINT;
     d_cardslotname VARCHAR(255);
+    existing_id BIGINT;
+    inserted_id BIGINT;
 BEGIN
     -- Initialize success flag
     success := 0;
-    -- Begin transaction
-    BEGIN
-        -- Get the cardslotname associated with the pluggableid
-        SELECT cardlslotname INTO existcardslotname FROM pluggable WHERE id = p_pluggableid;
 
-        -- Check if cardid exists for the provided cardname and devicename
-        SELECT cardid INTO d_cardid FROM card WHERE cardname = p_cardname AND devicename = p_deviceName;
+    -- Get the cardslotname associated with the pluggableid
+    BEGIN
+        SELECT cardlslotname INTO existcardslotname
+        FROM pluggable
+        WHERE id = p_pluggableid;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE EXCEPTION 'Error fetching cardslotname for pluggableid %: %', p_pluggableid, SQLERRM;
+    END;
+
+    -- Check if cardid exists for the provided cardname and devicename
+    BEGIN
+        SELECT cardid INTO d_cardid
+        FROM card
+        WHERE cardname = p_cardname
+          AND devicename = p_deviceName;
         IF NOT FOUND THEN
-            -- If cardid not found, raise an exception
             RAISE EXCEPTION 'Cardid not found for cardname % and devicename %', p_cardname, p_deviceName;
         END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE EXCEPTION 'Error fetching cardid for cardname % and devicename %: %', p_cardname, p_deviceName, SQLERRM;
+    END;
 
-        -- Construct the full card slot name
-        d_cardslotname := p_cardname || d_cardid || '/' || p_positionOnCard;
+    -- Construct the full card slot name
+    d_cardslotname := p_cardname || d_cardid || '/' || p_positionOnCard;
 
-        -- Check if the retrieved cardslotname exists and is different from the input cardslotname
+    -- Insert or update the card_slot table
+    BEGIN
         IF existcardslotname IS NULL THEN
-            -- If the cardslotname does not exist, insert a new record into the card_slot table
+            -- Insert a new record into the card_slot table
             INSERT INTO card_slot("name", slot_position, operational_state, administrative_state, usage_state, href, cardname, realation, cardid)
             VALUES (d_cardslotname, p_positionOnCard, p_operationalState, p_administrativeState, p_usageState, p_href, p_cardname, 'card-to-cardslot', d_cardid);
         ELSE
-            -- If the cardslotname exists, check if it's different from the generated cardslotname
+            -- Check if the existing cardslotname is different from the generated cardslotname
             IF existcardslotname != d_cardslotname THEN
-                -- Check if the generated cardslotname already exists in the card_slot table
-                PERFORM * FROM card_slot WHERE "name" = p_cardslotname;
-                -- If a record exists, throw an exception indicating the cardslot is already occupied
+                PERFORM 1
+                FROM card_slot
+                WHERE "name" = p_cardslotname;
                 IF FOUND THEN
                     RAISE EXCEPTION 'Given cardslot already occupied';
                 END IF;
@@ -1329,12 +1554,17 @@ BEGIN
                 usage_state = p_usageState,
                 href = p_href,
                 cardname = p_cardname,
-                realation = 'card-to-pluggable', -- Corrected the column name
+                realation = 'card-to-pluggable',
                 cardid = d_cardid
             WHERE "name" = existcardslotname;
         END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE EXCEPTION 'Error inserting/updating card_slot: %', SQLERRM;
+    END;
 
-        -- Perform an update in the pluggable table
+    -- Perform an update in the pluggable table
+    BEGIN
         UPDATE pluggable
         SET plugablename = p_pluggablename,
             pluggable_model = p_pluggableModel,
@@ -1351,22 +1581,65 @@ BEGIN
             cardname = p_cardname,
             cardlslotname = p_cardslotname,
             order_id = p_orderId,
-            devicename = devicename = NULL
+            devicename = NULL
         WHERE id = p_pluggableid;
-        
-        -- Set success flag to 1 if the update is successful
-        success := 1;
-        
     EXCEPTION
         WHEN OTHERS THEN
-            -- If any exception occurs, rollback transaction and set success flag to 0
-            ROLLBACK;
-            success := 0;
-            -- Re-raise the exception for handling at the calling end
-            RAISE;
+            RAISE EXCEPTION 'Error updating pluggable with id %: %', p_pluggableid, SQLERRM;
     END;
+
+    -- Update or insert additional attributes
+    FOR i IN 1..array_length(p_keys, 1) LOOP
+        BEGIN
+            -- Check if the key-value pair already exists for this device
+            SELECT id INTO existing_id
+            FROM additional_attribute aa
+            JOIN pluggable_additional_attribute paa ON aa.id = paa.additional_attribute_id
+            WHERE paa.pluggable_id = p_pluggableid
+              AND aa."key" = p_keys[i]
+              AND aa."value" = p_values[i];
+
+            IF existing_id IS NOT NULL THEN
+                -- Update existing additional attribute
+                UPDATE pluggable_additional_attribute
+                SET pluggable_id = p_pluggableid
+                WHERE pluggable_id = p_pluggableid
+                  AND additional_attribute_id = existing_id;
+                IF NOT FOUND THEN
+                    RAISE EXCEPTION 'Failed to update pluggable_additional_attribute';
+                END IF;
+            ELSE
+                -- Insert new additional attribute
+                INSERT INTO additional_attribute ("key", "value")
+                VALUES (p_keys[i], p_values[i])
+                RETURNING id INTO inserted_id;
+
+                -- Insert into port_additional_attribute table
+                INSERT INTO pluggable_additional_attribute (pluggable_id, additional_attribute_id)
+                VALUES (p_pluggableid, inserted_id);
+                IF NOT FOUND THEN
+                    RAISE EXCEPTION 'Failed to insert into pluggable_additional_attribute';
+                END IF;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE EXCEPTION 'Error processing key-value pair: %, % Error: %', p_keys[i], p_values[i], SQLERRM;
+        END;
+    END LOOP;
+
+    -- Set success flag to 1 if the update is successful
+    success := 1;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Rollback transaction and set success flag to 0 in case of any error
+        ROLLBACK;
+        success := 0;
+        -- Re-raise the exception for handling at the calling end
+        RAISE;
 END;
 $$;
+
 ------------------- end------------------------------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE insert_logical_portoncard(
     p_logicalportName VARCHAR,

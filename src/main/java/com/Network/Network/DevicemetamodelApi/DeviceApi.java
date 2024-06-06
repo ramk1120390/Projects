@@ -13,8 +13,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -48,6 +51,11 @@ public class DeviceApi {
     private PluggableRepo pluggableRepo;
     @Autowired
     private CarslotRepo carslotRepo;
+    @Autowired
+    private PhysicalConnectionRepo physicalConnectionRepo;
+    @Autowired
+    private LogicalConnectionRepo logicalConnectionRepo;
+    Logger logger = LoggerFactory.getLogger(DeviceApi.class);
 
 
     @PostMapping("/insertDeviceOnBuilding")
@@ -700,7 +708,7 @@ public class DeviceApi {
             if (exPort == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given port id not found");
             }
-            String cardname = exPort.getCardname() == null ? "Na" : exPort.getCardname();
+            String cardname = exPort.getCardname() == null ? portDto.getCardname() : exPort.getCardname();
             String deviceName = exPort.getDevice() == null || exPort.getDevice().getDevicename() == null ? "Na" : exPort.getDevice().getDevicename();
             String cardSlotName = exPort.getCardSlot() == null || exPort.getCardSlot().getName() == null ? "Na" : exPort.getCardSlot().getName();
             String existingportname = exPort.getPortname();
@@ -763,15 +771,15 @@ public class DeviceApi {
                     if (portDto.getCardname() != null && !portDto.getCardname().equals(cardname) && portDto.getDeviceName() == null) {
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("Device name must be provided if card name is not null");
                     }
+                    Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
+                    if (exCard == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
+                    }
+                    Long cardid = exCard.getCardid();
+                    // Construct the full card slot name
+                    updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
                     // Check if positionOnCard is updated
                     if (!portDto.getPositionOnCard().equals(exPortPositionOnCard)) {
-                        Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
-                        if (exCard == null) {
-                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
-                        }
-                        Long cardid = exCard.getCardid();
-                        // Construct the full card slot name
-                        updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
                         // Check if a pluggable device or port already exists at the specified position
                         Pluggable exPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
                         if (exPluggable != null) {
@@ -783,18 +791,27 @@ public class DeviceApi {
                         }
                     }
                 }
-
+                List<String> A_A_V = new ArrayList<>();
+                List<String> A_A_K = new ArrayList<>();
+                if (portDto.getAdditionalAttributes() != null && !portDto.getAdditionalAttributes().isEmpty()) {
+                    for (AdditionalAttribute additionalAttributeDTO : portDto.getAdditionalAttributes()) {
+                        A_A_K.add(additionalAttributeDTO.getKey());
+                        A_A_V.add(additionalAttributeDTO.getValue());
+                    }
+                }
                 if (portDto.getPositionOnDevice() != 0 && portDto.getDeviceName() != null) {
                     success = portRepo.updatePortOnDevice(portid, portDto.getPortname(), portDto.getPositionOnDevice()
                             , portDto.getPortType(), portDto.getOperationalState(), portDto.getAdministrativeState(),
                             portDto.getUsageState(), portDto.getHref(), portDto.getPortSpeed(),
                             portDto.getCapacity(), portDto.getManagementIp(),
-                            orderid, portDto.getDeviceName(), 0);
+                            orderid, portDto.getDeviceName(), A_A_K.toArray(new String[0]),
+                            A_A_V.toArray(new String[0]), 0);
                 } else {
                     success = portRepo.updatePortOnCard(portid, portDto.getPortname(), portDto.getPositionOnCard(), portDto.getPortType(), portDto.getOperationalState(),
                             portDto.getAdministrativeState(), portDto.getUsageState(), portDto.getHref(), portDto.getPortSpeed(),
                             cardname, updatedCardSlotName, portDto.getCapacity(), portDto.getManagementIp(),
-                            orderid, portDto.getDeviceName(), 0);
+                            orderid, portDto.getDeviceName(), A_A_K.toArray(new String[0]),
+                            A_A_V.toArray(new String[0]), 0);
                 }
 
             }
@@ -829,7 +846,7 @@ public class DeviceApi {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Given Pluggable id not found");
             }
             Pluggable exPluggable = exPluggableOptional.get();
-            String cardname = exPluggable.getCardname() == null ? "Na" : exPluggable.getCardname();
+            String cardname = exPluggable.getCardname() == null ? portDto.getCardname() : exPluggable.getCardname();
             String deviceName = exPluggable.getDevice() == null || exPluggable.getDevice().getDevicename() == null ? "Na" :
                     exPluggable.getDevice().getDevicename();
             String cardSlotName = exPluggable.getCardSlot() == null || exPluggable.getCardSlot().getName() == null ? "Na" :
@@ -895,15 +912,15 @@ public class DeviceApi {
                     if (portDto.getCardname() != null && !portDto.getCardname().equals(cardname) && portDto.getDeviceName() == null) {
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("Device name must be provided if card name is not null");
                     }
+                    Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
+                    if (exCard == null) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
+                    }
+                    Long cardid = exCard.getCardid();
+                    // Construct the full card slot name
+                    updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
                     // Check if positionOnCard is updated
                     if (!portDto.getPositionOnCard().equals(exPluggablePositionOnCard)) {
-                        Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDto.getCardname(), portDto.getDeviceName());
-                        if (exCard == null) {
-                            return ResponseEntity.status(HttpStatus.CONFLICT).body("Given card with device not found");
-                        }
-                        Long cardid = exCard.getCardid();
-                        // Construct the full card slot name
-                        updatedCardSlotName = portDto.getCardname() + cardid + "/" + portDto.getPositionOnCard();
                         // Check if a pluggable device or port already exists at the specified position
                         exPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(updatedCardSlotName, portDto.getPositionOnCard());
                         if (exPluggable != null) {
@@ -915,19 +932,28 @@ public class DeviceApi {
                         }
                     }
                 }
-
+                List<String> A_A_V = new ArrayList<>();
+                List<String> A_A_K = new ArrayList<>();
+                if (portDto.getAdditionalAttributes() != null && !portDto.getAdditionalAttributes().isEmpty()) {
+                    for (AdditionalAttribute additionalAttributeDTO : portDto.getAdditionalAttributes()) {
+                        A_A_K.add(additionalAttributeDTO.getKey());
+                        A_A_V.add(additionalAttributeDTO.getValue());
+                    }
+                }
                 if (portDto.getPositionOnDevice() != 0 && portDto.getDeviceName() != null) {
                     success = pluggableRepo.updatePluggableOnDevice(plugableid, portDto.getPlugablename(),
                             portDto.getPluggableModel(), portDto.getPluggablePartNumber(), portDto.getPositionOnDevice(),
                             portDto.getOperationalState(), portDto.getAdministrativeState(), portDto.getUsageState(),
                             portDto.getHref(), portDto.getManagementIp(), portDto.getVendor(), orderid,
-                            portDto.getDeviceName(), 0);
+                            portDto.getDeviceName(), A_A_K.toArray(new String[0]),
+                            A_A_V.toArray(new String[0]), 0);
                 } else {
                     success = pluggableRepo.updatePluggableOnCard(plugableid, portDto.getPlugablename(),
                             portDto.getPluggableModel(), portDto.getPluggablePartNumber(), portDto.getPositionOnCard(),
                             portDto.getOperationalState(), portDto.getAdministrativeState(), portDto.getUsageState(),
                             portDto.getHref(), portDto.getManagementIp(), portDto.getVendor(), orderid,
-                            portDto.getCardname(), updatedCardSlotName, portDto.getDeviceName(), 0);
+                            portDto.getCardname(), updatedCardSlotName, portDto.getDeviceName(), A_A_K.toArray(new String[0]),
+                            A_A_V.toArray(new String[0]), 0);
                 }
             }
             if (success == 1) {
@@ -1716,10 +1742,442 @@ public class DeviceApi {
         return response;
     }
 
+    @Autowired
+    AdditionalAttributeRepo additionalAttributeRepo;
+
+    @Transactional
+    @GetMapping("/UpdateShelf")
+    public Shelf UpdateShelf(@RequestParam("ShelfName") String ShelfName,
+                             @RequestBody ShelfDto shelfDto) {
+        Shelf exShelf = new Shelf();
+        try {
+            Optional<Shelf> ShlefOptional = shelfRepo.findAll().stream()
+                    .filter(shelf -> shelf.getName().equals(ShelfName.toLowerCase()))
+                    .findFirst();
+            if (!ShlefOptional.isPresent()) {
+                appExceptionHandler.raiseException("Given Shelf has not found: " + ShelfName.toLowerCase());
+            }
+            exShelf = ShlefOptional.get();
+            String finalName = ShelfName;
+            List<Long> AAIds = shelfRepo.findAll().stream()
+                    .filter(shelf -> shelf.getName().equals(finalName.toLowerCase()))
+                    .flatMap(shelf -> shelf.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            exShelf.setOperationalState(shelfDto.getOperationalState());
+            exShelf.setAdministrativeState(shelfDto.getAdministrativeState());
+            exShelf.setUsageState(shelfDto.getUsageState());
+            exShelf.setHref(shelfDto.getHref());
+            exShelf = shelfRepo.save(exShelf);
+            List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+            if (shelfDto.getAdditionalAttributes() != null && !shelfDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : shelfDto.getAdditionalAttributes()) {
+                    AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                    additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                    additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                    AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                    additionalAttributes.add(savedAdditionalAttribute);
+                }
+            }
+            exShelf.setAdditionalAttributes(additionalAttributes);
+            exShelf = shelfRepo.save(exShelf);
+            additionalAttributeRepo.deleteAdditionalAttributesByIds(AAIds);
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return exShelf;
+    }
+
+    @Transactional
+    @GetMapping("/UpdateSlot")
+    public Slot UpdateSlot(@RequestParam("SlotName") String SlotName,
+                           @RequestBody SlotDto slotDto) {
+        Slot exSlot = new Slot();
+        try {
+            Optional<Slot> SlotOptional = slotRepo.findAll().stream()
+                    .filter(slot -> slot.getSlotname().equals(SlotName.toLowerCase()))
+                    .findFirst();
+            if (!SlotOptional.isPresent()) {
+                appExceptionHandler.raiseException("Given Slot has not found: " + SlotName.toLowerCase());
+            }
+            exSlot = SlotOptional.get();
+            String finalName = SlotName;
+            List<Long> AAIds = slotRepo.findAll().stream()
+                    .filter(slot -> slot.getSlotname().equals(SlotName.toLowerCase()))
+                    .flatMap(slot -> slot.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            exSlot.setOperationalState(slotDto.getOperationalState());
+            exSlot.setAdministrativeState(slotDto.getAdministrativeState());
+            exSlot.setUsageState(slotDto.getUsageState());
+            exSlot.setHref(slotDto.getHref());
+            exSlot = slotRepo.save(exSlot);
+            List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+            if (slotDto.getAdditionalAttributes() != null && !slotDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : slotDto.getAdditionalAttributes()) {
+                    AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                    additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                    additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                    AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                    additionalAttributes.add(savedAdditionalAttribute);
+                }
+            }
+            exSlot.setAdditionalAttributes(additionalAttributes);
+            exSlot = slotRepo.save(exSlot);
+            additionalAttributeRepo.deleteAdditionalAttributesByIds(AAIds);
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return exSlot;
+    }
+
+    @Transactional
+    @GetMapping("/UpdateCardSlot")
+    public CardSlot UpdateCardSlot(@RequestParam("CardSlotName") String CardSlotName,
+                                   @RequestBody CardSlotDto cardSlotDto) {
+        CardSlot exCardSlot = new CardSlot();
+        try {
+            Optional<CardSlot> CardSlotOptional = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> cardSlot.getName().equals(CardSlotName.toLowerCase()))
+                    .findFirst();
+            if (!CardSlotOptional.isPresent()) {
+                appExceptionHandler.raiseException("Given Card Slot has not found: " + CardSlotName.toLowerCase());
+            }
+            exCardSlot = CardSlotOptional.get();
+            String finalName = CardSlotName;
+            List<Long> AAIds = carslotRepo.findAll().stream()
+                    .filter(cardSlot -> cardSlot.getName().equals(CardSlotName.toLowerCase()))
+                    .flatMap(cardSlot -> cardSlot.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            exCardSlot.setOperationalState(cardSlotDto.getOperationalState());
+            exCardSlot.setAdministrativeState(cardSlotDto.getAdministrativeState());
+            exCardSlot.setUsageState(cardSlotDto.getUsageState());
+            exCardSlot.setHref(cardSlotDto.getHref());
+            exCardSlot = carslotRepo.save(exCardSlot);
+            List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+            if (cardSlotDto.getAdditionalAttributes() != null && !cardSlotDto.getAdditionalAttributes().isEmpty()) {
+                for (AdditionalAttribute additionalAttributeDTO : cardSlotDto.getAdditionalAttributes()) {
+                    AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                    additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                    additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                    AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                    additionalAttributes.add(savedAdditionalAttribute);
+                }
+            }
+            exCardSlot.setAdditionalAttributes(additionalAttributes);
+            exCardSlot = carslotRepo.save(exCardSlot);
+            additionalAttributeRepo.deleteAdditionalAttributesByIds(AAIds);
+        } catch (Exception e) {
+            e.printStackTrace();
+            appExceptionHandler.raiseException(e.getMessage());
+        }
+        return exCardSlot;
+    }
+
+    @DeleteMapping("/deleteDevice")
+    @Transactional
+    public JsonNode deleteDevice(@RequestParam(name = "DeviceName") String deviceName) {
+        JsonNode response;
+
+        try {
+            String deviceNameLower = deviceName.toLowerCase();
+            logger.info("Inside deleteDevice for Name: {}", deviceNameLower);
+
+            Device exDevice = deviceRepo.findByDevicename(deviceNameLower);
+            if (exDevice == null) {
+                logger.warn("No device found with the name: {}", deviceNameLower);
+                appExceptionHandler.raiseException("Given Device " + deviceName + " doesn't Exist");
+            }
+
+            Device connectData = deviceRepo.findDevicesByName(deviceNameLower);
+            if (connectData != null) {
+                logger.warn("Cannot delete device {} as it has associated ports or cards", deviceNameLower);
+                appExceptionHandler.raiseException("Given Device Cannot Delete Associated Ports or Cards");
+            }
+
+            List<Long> aaIds = deviceRepo.findAll().stream()
+                    .filter(device -> device.getDevicename().equals(deviceNameLower))
+                    .flatMap(device -> device.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+
+            logger.info("Deleting device with name: {}", deviceNameLower);
+            deviceRepo.deleteByDevicename(deviceNameLower);
+
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with device: {}", deviceNameLower);
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "Device deleted successfully")
+                    .put("deletedDevice", deviceNameLower);
+            logger.info("Device deleted successfully for Name: {}", deviceNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting device with name: {}", deviceName, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting device")
+                    .put("error", e.getMessage());
+        }
+
+        return response;
+    }
+
+    @DeleteMapping("/deleteCard")
+    @Transactional
+    public JsonNode deleteCard(@RequestParam(name = "CardName") String cardName, @RequestParam("DeviceName") String deviceName) {
+        JsonNode response;
+        try {
+            String cardNameLower = cardName.toLowerCase();
+            String deviceNameLower = deviceName.toLowerCase();
+            logger.info("Inside deleteCard for CardName: {} and DeviceName: {}", cardNameLower, deviceNameLower);
+
+            Card exDeviceCard = cardRepo.findCardsByCardNameAndDeviceName(cardNameLower, deviceNameLower);
+            if (exDeviceCard == null) {
+                logger.warn("No card found for CardName: {} and DeviceName: {}", cardNameLower, deviceNameLower);
+                appExceptionHandler.raiseException("Given device matching with cardName not found");
+            }
+            Long cardid = exDeviceCard.getCardid();
+            List<String> CardSlots = carslotRepo.findAll().stream().filter(cardSlot -> cardSlot.getCard().getCardid().
+                    equals(cardid)).map(CardSlot::getName).collect(Collectors.toList());
+            if (!CardSlots.isEmpty()) {
+                logger.warn("Cannot delete Card with CardID: {} as it is connected to CardSlots : {}", cardid, CardSlots);
+                appExceptionHandler.raiseException("Given Card cannot be deleted as it is connected to  CardSlot");
+            }
+            List<Long> aaIds = cardRepo.findAll().stream()
+                    .filter(card -> card.getId().getCardname().equals(cardNameLower) &&
+                            card.getId().getDevice().getDevicename().equals(deviceNameLower))
+                    .flatMap(card -> card.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting card with CardName: {} and DeviceName: {}", cardNameLower, deviceNameLower);
+            cardRepo.deleteByCardnameAndDevicename(cardNameLower, deviceNameLower);
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with card");
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "Card deleted successfully")
+                    .put("deletedCard", cardNameLower);
+            logger.info("Card deleted successfully for CardName: {} and DeviceName: {}", cardNameLower, deviceNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting card with CardName: {} and DeviceName: {}", cardName, deviceName, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting card")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+    @DeleteMapping("/deletePort")
+    @Transactional
+    public JsonNode deletePort(@RequestParam(name = "CarSlotName", required = false) String carSlotName,
+                               @RequestParam("PortName") String portName,
+                               @RequestParam(value = "DeviceName", required = false) String deviceName) {
+        JsonNode response;
+        try {
+            String carSlotNameLower = carSlotName != null ? carSlotName.toLowerCase() : null;
+            String portNameLower = portName != null ? portName.toLowerCase() : null;
+            String deviceNameLower = deviceName != null ? deviceName.toLowerCase() : null;
+
+            if ((carSlotNameLower == null && deviceNameLower == null) || (carSlotNameLower != null && deviceNameLower != null)) {
+                logger.warn("Invalid input: CarSlotName={}, DeviceName={}, PortName={}", carSlotName, deviceName, portName);
+                appExceptionHandler.raiseException("Please provide valid input where either CarSlotName or DeviceName is null and the other is not null");
+            }
+
+            logger.info("Inside deletePort for CarSlotName: {}, DeviceName: {}, PortName: {}", carSlotNameLower, deviceNameLower, portNameLower);
+
+            Port exPort = portRepo.findPortsByCardSlotNameAndPortNameAndDeviceName(carSlotNameLower, portNameLower, deviceNameLower);
+            if (exPort == null) {
+                logger.warn("No port found for CarSlotName: {}, DeviceName: {}, PortName: {}", carSlotNameLower, deviceNameLower, portNameLower);
+                appExceptionHandler.raiseException("Port matching the given criteria not found");
+            }
+            Long portId = exPort.getPortid();
+
+            List<String> logicalPortNames = logicalPortRepo.findAll().stream()
+                    .filter(logicalPort -> logicalPort.getPort().getPortid().equals(portId))
+                    .map(LogicalPort::getName)
+                    .collect(Collectors.toList());
+
+            List<String> physicalConnections = physicalConnectionRepo.findAll().stream()
+                    .filter(physicalConnection ->
+                            physicalConnection.getDeviceaport().equals(portNameLower) ||
+                                    physicalConnection.getDevicezport().equals(portNameLower))
+                    .map(PhysicalConnection::getName)
+                    .collect(Collectors.toList());
+
+            if (!logicalPortNames.isEmpty() || !physicalConnections.isEmpty()) {
+                logger.warn("Cannot delete port with portId: {} as it is connected to logical ports: {} and physical connections: {}",
+                        portId, logicalPortNames, physicalConnections);
+                appExceptionHandler.raiseException("Given Port cannot be deleted as it is connected to logical ports or physical connections");
+            }
+
+            List<Long> aaIds = portRepo.findAll().stream()
+                    .filter(port -> port.getPortid().equals(portId))
+                    .flatMap(port -> port.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting port with CarSlotName: {}, DeviceName: {}, PortName: {}", carSlotNameLower, deviceNameLower, portNameLower);
+            portRepo.deleteByPortid(portId);
+
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with port");
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "Port deleted successfully")
+                    .put("deletedPort", portNameLower);
+            logger.info("Port deleted successfully for CarSlotName: {} and DeviceName: {}", carSlotNameLower, deviceNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting port with CarSlotName: {} and DeviceName: {}", carSlotName, deviceName, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting port")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+    @DeleteMapping("/deletePluggable")
+    @Transactional
+    public JsonNode deletePluggable(@RequestParam(name = "CarSlotName", required = false) String carSlotName,
+                                    @RequestParam("Pluggable") String PluggableName,
+                                    @RequestParam(value = "DeviceName", required = false) String deviceName) {
+        JsonNode response;
+        try {
+            String carSlotNameLower = carSlotName != null ? carSlotName.toLowerCase() : null;
+            String PluggableNameLower = PluggableName != null ? PluggableName.toLowerCase() : null;
+            String deviceNameLower = deviceName != null ? deviceName.toLowerCase() : null;
+
+            if ((carSlotNameLower == null && deviceNameLower == null) || (carSlotNameLower != null && deviceNameLower != null)) {
+                logger.warn("Invalid input: CarSlotName={}, DeviceName={}, PortName={}", carSlotName, deviceName, PluggableName);
+                appExceptionHandler.raiseException("Please provide valid input where either CarSlotName or DeviceName is null and the other is not null");
+            }
+            logger.info("Inside deletePort for CarSlotName: {}, DeviceName: {}, PortName: {}", carSlotNameLower, deviceNameLower, PluggableNameLower);
+            Pluggable exPluggable = pluggableRepo.findPluggableByCardSlotNameAndPlugableNameAndDeviceName(carSlotNameLower, PluggableNameLower, deviceNameLower);
+            if (exPluggable == null) {
+                logger.warn("No Pluggable found for CarSlotName: {}, DeviceName: {}, PluggableName: {}", carSlotNameLower, deviceNameLower, PluggableNameLower);
+                appExceptionHandler.raiseException("Pluggable matching the given criteria not found");
+            }
+            Long PluggableId = exPluggable.getId();
+
+            List<String> logicalPortNames = logicalPortRepo.findAll().stream()
+                    .filter(logicalPort -> logicalPort.getPluggable().getId().equals(PluggableId))
+                    .map(LogicalPort::getName)
+                    .collect(Collectors.toList());
+            List<String> physicalConnections = physicalConnectionRepo.findAll().stream()
+                    .filter(physicalConnection ->
+                            physicalConnection.getDeviceaport().equals(PluggableNameLower) ||
+                                    physicalConnection.getDevicezport().equals(PluggableNameLower))
+                    .map(PhysicalConnection::getName)
+                    .collect(Collectors.toList());
+
+            if (!logicalPortNames.isEmpty() || !physicalConnections.isEmpty()) {
+                logger.warn("Cannot delete Pluggable with PluggableId: {} as it is connected to logical ports: {} and physical connections: {}",
+                        PluggableId, logicalPortNames, physicalConnections);
+                appExceptionHandler.raiseException("Given Port cannot be deleted as it is connected to logical ports or physical connections");
+            }
+
+            List<Long> aaIds = pluggableRepo.findAll().stream()
+                    .filter(pluggable -> pluggable.getId().equals(PluggableId))
+                    .flatMap(pluggable -> pluggable.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting Pluggable with CarSlotName: {}, DeviceName: {}, PortName: {}", carSlotNameLower, deviceNameLower, PluggableNameLower);
+            pluggableRepo.deleteBypluggableByid(PluggableId);
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with Pluggable");
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "Pluggable deleted successfully")
+                    .put("deletedPort", PluggableNameLower);
+            logger.info("Pluggable deleted successfully for CarSlotName: {} and DeviceName: {}", carSlotNameLower, deviceNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting Pluggable with CarSlotName: {} and DeviceName: {}", carSlotName, deviceName, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting port")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+    @DeleteMapping("/deleteLogicalPort")
+    @Transactional
+    public JsonNode deleteLogicalPort(@RequestParam("LogicalPort") String LogicalPortName,
+                                      @RequestParam(value = "DeviceName") String deviceName) {
+        JsonNode response;
+        try {
+
+            String LogicalPortNameLower = LogicalPortName.toLowerCase();
+            String deviceNameLower = deviceName.toLowerCase();
+            logger.info("Inside deleteLogicalPort for LogicalPortName: {}, DeviceName: {}", LogicalPortNameLower,
+                    deviceNameLower);
+            LogicalPort exLogicalPort = logicalPortRepo.findLogicalPortByNameAndDeviceName(LogicalPortNameLower, deviceNameLower);
+            if (exLogicalPort == null) {
+                logger.warn("No LogicalPort found for DeviceName: {}, LogicalPort: {}", deviceNameLower, LogicalPortNameLower);
+                appExceptionHandler.raiseException("LogicalPort matching the given criteria not found");
+            }
+            Long LogicalPortid = exLogicalPort.getLogicalportid();
+            List<String> LogicalConnection = logicalConnectionRepo.findAll().stream()
+                    .filter(logicalConnection -> logicalConnection.getDeviceALogicalPort().
+                            equals(LogicalPortNameLower) || logicalConnection.getDeviceZLogicalPort().
+                            equals(LogicalPortNameLower)).map(logicalConnection -> logicalConnection.getName()).
+                    collect(Collectors.toList());
+            if (!LogicalConnection.isEmpty()) {
+                logger.warn("Cannot delete deleteLogicalPort with LogicalPortNameLower: {} as it is connected to LogicalConnections: {}",
+                        LogicalPortNameLower, LogicalConnection);
+                appExceptionHandler.raiseException("Given Pluggable cannot be deleted as it is connected to logical ports");
+            }
+            List<Long> aaIds = logicalPortRepo.findAll().stream()
+                    .filter(logicalPort -> logicalPort.getLogicalportid().equals(LogicalPortid))
+                    .flatMap(logicalPort -> logicalPort.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting LogicalPort with , DeviceName: {}, LogicalPortName: {}", deviceNameLower, LogicalPortNameLower);
+            logicalPortRepo.deleteLogicalPortByLogicalportid(LogicalPortid);
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with LogicalPort");
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "LogicalPort deleted successfully")
+                    .put("deletedPort", LogicalPortNameLower);
+            logger.info("LogicalPort deleted successfully for LogicalPortName: {} and DeviceName: {}", LogicalPortNameLower,
+                    deviceNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting LogicalPort with LogicalPortName: {} and DeviceName: {}",
+                    LogicalPortName, deviceName, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting LogicalPort")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+
+
+
 }
 
-//TODO delete device and delete shelf need todo
-//TODO shelf to slot need to create card
-//TODO update shelf api need create
-//
+
+
 

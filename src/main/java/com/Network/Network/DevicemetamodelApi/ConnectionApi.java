@@ -5,18 +5,17 @@ import com.Network.Network.DevicemetamodelRepo.*;
 import com.Network.Network.Exception.AppExceptionHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.transaction.Transactional;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 
@@ -45,6 +44,8 @@ public class ConnectionApi {
     private LogicalConnectionRepo logicalConnectionRepo;
     @Autowired
     private LogicalPortRepo logicalPortRepo;
+    @Autowired
+    private AdditionalAttributeRepo additionalAttributeRepo;
 
     Logger logger = LoggerFactory.getLogger(ConnectionApi.class);
 
@@ -381,6 +382,103 @@ public class ConnectionApi {
             return objectMapper.valueToTree(errorResponse);
         }
     }
+
+    @DeleteMapping("/deletePhysicalConnection")
+    @Transactional
+    public JsonNode deletePhysicalConnection(@RequestParam(name = "PhysicalConnection") String PhysicalConnection) {
+        JsonNode response;
+        try {
+            String PhysicalConnectionNameLower = PhysicalConnection.toLowerCase();
+            logger.info("Inside deletePhysicalConnection for Name: {}", PhysicalConnectionNameLower);
+
+            PhysicalConnection exPhysical = physicalConnectionRepo.findByName(PhysicalConnectionNameLower);
+            if (exPhysical == null) {
+                logger.warn("No PhysicalConnection found with the name: {}", PhysicalConnectionNameLower);
+                appExceptionHandler.raiseException("Given PhysicalConnectionName " + PhysicalConnection + " doesn't Exist");
+            }
+            Long ConnectionId = exPhysical.getPhysicalconnection_id();
+            List<String> connectData = logicalConnectionRepo.findAll().stream()
+                    .filter(logicalConnection ->
+                            logicalConnection.getName().equals(PhysicalConnectionNameLower) &&
+                                    logicalConnection.getPhysicalConnections().contains(PhysicalConnectionNameLower))
+                    .flatMap(logicalConnection -> logicalConnection.getPhysicalConnections().stream())
+                    .collect(Collectors.toList());
+            if (connectData != null && !connectData.isEmpty()) {
+                String joinedConnectData = connectData.stream().collect(Collectors.joining(", "));
+                logger.warn("Cannot delete PhysicalConnection {} as it has associated PhysicalConnection: {}", PhysicalConnectionNameLower, joinedConnectData);
+                appExceptionHandler.raiseException("Cannot delete device " + PhysicalConnectionNameLower + " as it has associated PhysicalConnection: " + joinedConnectData);
+            }
+            List<Long> aaIds = physicalConnectionRepo.findAll().stream()
+                    .filter(physicalConnection -> physicalConnection.getPhysicalconnection_id().equals(ConnectionId))
+                    .flatMap(device -> device.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting PhysicalConnection with Name: {}", PhysicalConnectionNameLower);
+            physicalConnectionRepo.deleteByPhysicalconnection_id(ConnectionId);
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with PhysicalConnection: {}", PhysicalConnectionNameLower);
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "PhysicalConnection deleted successfully")
+                    .put("deletedPhysicalConnectionName", PhysicalConnectionNameLower);
+            logger.info("PhysicalConnection deleted successfully for Name: {}", PhysicalConnectionNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting PhysicalConnection with name: {}", PhysicalConnection, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting PhysicalConnection")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+    @DeleteMapping("/deleteLogicalConnection")
+    @Transactional
+    public JsonNode deleteLogicalConnection(@RequestParam(name = "LogicalConnection") String LogicalConnection) {
+        JsonNode response;
+        try {
+            String LogicalConnectionNameLower = LogicalConnection.toLowerCase();
+            logger.info("Inside deleteLogicalConnection for Name: {}", LogicalConnectionNameLower);
+            LogicalConnection exLogical = logicalConnectionRepo.findByName(LogicalConnectionNameLower);
+            if (exLogical == null) {
+                logger.warn("No LogicalConnection found with the name: {}", LogicalConnectionNameLower);
+                appExceptionHandler.raiseException("Given LogicalConnectionName " + LogicalConnectionNameLower + " doesn't Exist");
+            }
+            Long ConnectionId = exLogical.getLogicalconnection_id();
+
+            List<Long> aaIds = logicalConnectionRepo.findAll().stream()
+                    .filter(logicalConnection -> logicalConnection.getLogicalconnection_id().equals(ConnectionId))
+                    .flatMap(logicalConnection -> logicalConnection.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            logger.info("Deleting deleteLogicalConnection with Name: {}", LogicalConnectionNameLower);
+            physicalConnectionRepo.deleteByPhysicalconnection_id(ConnectionId);
+            if (!aaIds.isEmpty()) {
+                logger.info("Deleting additional attributes associated with LogicalConnection: {}", LogicalConnectionNameLower);
+                additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
+            }
+            logicalConnectionRepo.deleteByLogicalconnection_id(ConnectionId);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Success")
+                    .put("message", "PhysicalConnection deleted successfully")
+                    .put("LogicalConnectionName", LogicalConnectionNameLower);
+            logger.info("LogicalConnection deleted successfully for Name: {}", LogicalConnectionNameLower);
+
+        } catch (Exception e) {
+            logger.error("An error occurred while deleting LogicalConnection with name: {}", LogicalConnection, e);
+            response = objectMapper.createObjectNode()
+                    .put("status", "Error")
+                    .put("message", "An error occurred while deleting LogicalConnection")
+                    .put("error", e.getMessage());
+        }
+        return response;
+    }
+
+
 }
 
 //TODO update PhysicalConnection Logical Connection

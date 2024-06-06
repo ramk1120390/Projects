@@ -185,6 +185,14 @@ public class Port implements Serializable {    //if we are creating port on card
     public void setDevice(Device device) {
         this.device = device;
     }
+
+    public List<AdditionalAttribute> getAdditionalAttributes() {
+        return additionalAttributes;
+    }
+
+    public void setAdditionalAttributes(List<AdditionalAttribute> additionalAttributes) {
+        this.additionalAttributes = additionalAttributes;
+    }
 }
 //orelse this shelfid undercard
 

@@ -463,6 +463,7 @@ public class LocationManagerApi {
         return response;
     }
 
+    @Transactional
     @DeleteMapping("/deleteBuilding")
     public JSONObject deleteBuilding(@RequestParam(name = "buildingName") String building) {
         building = building.toLowerCase().trim();
@@ -479,6 +480,13 @@ public class LocationManagerApi {
                 appExceptionHandler.raiseException("Building cannot be deleted as it is associated with Device or Rack");
             }
             buildingRepo.deleteBybuildingByName(building);
+            String finalName = building;
+            List<Long> AAIds = buildingRepo.findAll().stream()
+                    .filter(building1 -> building1.getBuildingName().equals(finalName))
+                    .flatMap(building1 -> building1.getAdditionalAttributes().stream())
+                    .map(AdditionalAttribute::getId)
+                    .collect(Collectors.toList());
+            additionalAttributeRepo.deleteAdditionalAttributesByIds(AAIds);
             response.put("status", "Success");
             response.put("message", "Building deleted successfully");
         } catch (Exception e) {

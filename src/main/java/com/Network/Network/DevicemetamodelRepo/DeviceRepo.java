@@ -1,6 +1,8 @@
 package com.Network.Network.DevicemetamodelRepo;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.repository.query.Param;
@@ -59,5 +61,30 @@ public interface DeviceRepo extends JpaRepository<Device, Long> {
             @Param("success") Integer success
     );
 
+    @Query(value = "SELECT d.* " +
+            "FROM device d " +
+            "WHERE d.devicename IN (" +
+            "    SELECT c.devicename " +
+            "    FROM card c " +
+            "    WHERE c.devicename = :deviceName" +
+            ")" +
+            "UNION " +
+            "SELECT d2.* " +
+            "FROM device d2 " +
+            "WHERE d2.devicename IN (" +
+            "    SELECT p.devicename " +
+            "    FROM port p " +
+            "    WHERE p.devicename = :deviceName " +
+            "    UNION " +
+            "    SELECT p2.devicename " +
+            "    FROM pluggable p2 " +
+            "    WHERE p2.devicename = :deviceName" +
+            ")", nativeQuery = true)
+    Device findDevicesByName(@Param("deviceName") String deviceName);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM Device d WHERE d.devicename = :deviceName", nativeQuery = true)
+    void deleteByDevicename(@Param("deviceName") String deviceName);
 
 }

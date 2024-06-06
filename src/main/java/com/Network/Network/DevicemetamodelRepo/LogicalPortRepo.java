@@ -1,6 +1,7 @@
 package com.Network.Network.DevicemetamodelRepo;
 
 import com.Network.Network.DevicemetamodelPojo.LogicalPort;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -97,11 +98,19 @@ public interface LogicalPortRepo extends JpaRepository<LogicalPort, Long> {
     LogicalPort findByDeviceNameAndPosition(@Param("deviceName") String deviceName,
                                             @Param("positionOnDevice") int positionOnDevice,
                                             @Param("positionOnPort") int positionOnPort);
+
     @Query(value = "SELECT * FROM logical_port lp WHERE lp.devicename = :deviceName AND" +
             " lp.position_on_card = :positionOnCard AND lp.position_on_port = :positionOnPort", nativeQuery = true)
     LogicalPort findBylogicalPort(@Param("deviceName") String deviceName,
-                                                  @Param("positionOnCard") int positionOnCard,
-                                                  @Param("positionOnPort") int positionOnPort);
+                                  @Param("positionOnCard") int positionOnCard,
+                                  @Param("positionOnPort") int positionOnPort);
+
+    @Query(value = "SELECT lp FROM LogicalPort lp WHERE lp.name = :name AND lp.deviceName = :deviceName",
+            nativeQuery = true)
+    LogicalPort findLogicalPortByNameAndDeviceName(@Param("name") String name,
+                                                   @Param("deviceName") String deviceName);
+    @Transactional
+    void deleteLogicalPortByLogicalportid(Long logicalPortId);
 
     //TODO future add card name validate composite plugable name
     //if maintain unique both plugable and lp have same realtion name
