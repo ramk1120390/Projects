@@ -383,7 +383,7 @@ public class ConnectionApi {
         }
     }
 
-    @DeleteMapping("/deletePhysicalConnection")
+   /* @DeleteMapping("/deletePhysicalConnection")
     @Transactional
     public JsonNode deletePhysicalConnection(@RequestParam(name = "PhysicalConnection") String PhysicalConnection) {
         JsonNode response;
@@ -436,7 +436,9 @@ public class ConnectionApi {
         return response;
     }
 
-    @DeleteMapping("/deleteLogicalConnection")
+    */
+
+   /* @DeleteMapping("/deleteLogicalConnection")
     @Transactional
     public JsonNode deleteLogicalConnection(@RequestParam(name = "LogicalConnection") String LogicalConnection) {
         JsonNode response;
@@ -478,6 +480,8 @@ public class ConnectionApi {
         return response;
     }
 
+
+    */
 
 }
 

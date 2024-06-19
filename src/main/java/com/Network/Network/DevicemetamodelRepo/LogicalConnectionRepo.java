@@ -25,8 +25,9 @@ public interface LogicalConnectionRepo extends JpaRepository<LogicalConnection, 
             @Param("keys") String[] keys,
             @Param("p_values") String[] values,
             @Param("success") int success);
-    @Transactional
+  /*  @Transactional
     void deleteByLogicalconnection_id(Long id);
+   */
 }
 
 
