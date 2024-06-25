@@ -28,10 +28,6 @@ public class OrderApi {
     Logger logger = LoggerFactory.getLogger(OrderApi.class);
 
 
-    @GetMapping("hi")
-    public String test() {
-        return "hi";
-    }
 
     @PostMapping("/CreateOrder")
     public Order createOrder(@RequestParam("customerName") String customerName, @RequestBody OrderDto dto) {
