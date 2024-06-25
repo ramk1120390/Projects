@@ -11,11 +11,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.Network.Network.DevicemetamodelRepo.CustomerRepo;
 import com.Network.Network.DevicemetamodelRepo.OrderRepo;
@@ -30,6 +26,12 @@ public class OrderApi {
     @Autowired
     private AppExceptionHandler appExceptionHandler;
     Logger logger = LoggerFactory.getLogger(OrderApi.class);
+
+
+    @GetMapping("hi")
+    public String test() {
+        return "hi";
+    }
 
     @PostMapping("/CreateOrder")
     public Order createOrder(@RequestParam("customerName") String customerName, @RequestBody OrderDto dto) {
