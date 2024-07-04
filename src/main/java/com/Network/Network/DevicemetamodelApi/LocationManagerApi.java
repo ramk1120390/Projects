@@ -7,10 +7,16 @@ import java.util.stream.Collectors;
 
 import com.Network.Network.DevicemetamodelPojo.*;
 import com.Network.Network.DevicemetamodelRepo.*;
+import com.Network.Network.Service.KafaMessagedto;
+import com.Network.Network.Service.KafkaProducerService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +33,7 @@ import jakarta.transaction.Transactional;
 public class LocationManagerApi {
     @Autowired
     private CountryRepo countryRepo;
+
     @Autowired
     private StateRepo stateRepo;
     @Autowired
@@ -35,6 +42,11 @@ public class LocationManagerApi {
     private CityRepo cityRepo;
     @Autowired
     private BuildingRepo buildingRepo;
+    @Autowired
+    private ObjectMapper customObjectMapper;
+    @Autowired
+    private KafkaProducerService kafkaProducerService;
+
     Logger logger = LoggerFactory.getLogger(LocationManagerApi.class);
 
     @PostMapping("/CreateCountry")
@@ -47,6 +59,13 @@ public class LocationManagerApi {
                 appExceptionHandler.raiseException("Given country is already available: " + existingCountry);
             }
             response = countryRepo.save(country);
+            if (response != null) {
+                JsonNode dataNode = customObjectMapper.valueToTree(response);
+                KafaMessagedto kafaMessagedto = KafaMessagedto.getInstance();
+                kafaMessagedto.setAction("test");
+                kafaMessagedto.setData(dataNode);
+                kafkaProducerService.sendMessage(kafaMessagedto);
+            }
         } catch (Exception e) {
             logger.error("Error occurred while creating country: {}", e.getMessage());
             e.printStackTrace();

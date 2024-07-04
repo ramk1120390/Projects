@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class AppExceptionHandler {
     Logger logger = LoggerFactory.getLogger(AppExceptionHandler.class);
 
-    public Port raiseException(String errorMessage) {
+    public void raiseException(String errorMessage) {
         logger.error("Exception thrown with error message: {}", errorMessage);
         String exceptionId = String.valueOf(Instant.now());
         ExceptionDetails exceptionDetails = new ExceptionDetails(exceptionId, errorMessage);
