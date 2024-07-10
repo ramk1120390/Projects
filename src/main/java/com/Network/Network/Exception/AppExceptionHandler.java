@@ -2,8 +2,6 @@ package com.Network.Network.Exception;
 
 
 import java.time.Instant;
-
-import com.Network.Network.DevicemetamodelPojo.Port;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

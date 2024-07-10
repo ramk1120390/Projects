@@ -29,6 +29,24 @@ public class Service implements Serializable {
     )
     private List<Device> devices = new ArrayList<>();
 
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "service_logicalconnection",
+            joinColumns = @JoinColumn(name = "service_id"),
+            inverseJoinColumns = @JoinColumn(name = "connection_logicalconnection")
+    )
+    private List<LogicalConnection> logicalConnections = new ArrayList<>();
+
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "service_physicalconnnection",
+            joinColumns = @JoinColumn(name = "service_id"),
+            inverseJoinColumns = @JoinColumn(name = "service_physicalconnection")
+    )
+    private List<PhysicalConnection> physicalConnections = new ArrayList<>();
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "service_additional_attribute", // Name of the join table
@@ -45,7 +63,7 @@ public class Service implements Serializable {
 //TODO physical and logical connection
 
 
-    public Service(Long id, String name, String type, String operationalState, String administrativeState, String notes, Customer customer, List<Device> devices, List<AdditionalAttribute> additionalAttributes, Order order) {
+    public Service(Long id, String name, String type, String operationalState, String administrativeState, String notes, Customer customer, List<Device> devices, List<LogicalConnection> logicalConnections, List<PhysicalConnection> physicalConnections, List<AdditionalAttribute> additionalAttributes, Order order) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -54,6 +72,8 @@ public class Service implements Serializable {
         this.notes = notes;
         this.customer = customer;
         this.devices = devices;
+        this.logicalConnections = logicalConnections;
+        this.physicalConnections = physicalConnections;
         this.additionalAttributes = additionalAttributes;
         this.order = order;
     }
@@ -139,5 +159,21 @@ public class Service implements Serializable {
 
     public void setOrder(Order order) {
         this.order = order;
+    }
+
+    public List<LogicalConnection> getLogicalConnections() {
+        return logicalConnections;
+    }
+
+    public void setLogicalConnections(List<LogicalConnection> logicalConnections) {
+        this.logicalConnections = logicalConnections;
+    }
+
+    public List<PhysicalConnection> getPhysicalConnections() {
+        return physicalConnections;
+    }
+
+    public void setPhysicalConnections(List<PhysicalConnection> physicalConnections) {
+        this.physicalConnections = physicalConnections;
     }
 }

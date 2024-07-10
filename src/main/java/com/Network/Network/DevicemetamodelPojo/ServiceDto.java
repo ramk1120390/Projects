@@ -20,6 +20,9 @@ public class ServiceDto {
 
     private ArrayList<String> devices;
 
+    private ArrayList<String> logicalconnection;
+    private ArrayList<String> physicalconnection;
+
     private ArrayList<AdditionalAttribute> additionalAttributes;
 
 
@@ -27,7 +30,7 @@ public class ServiceDto {
     public ServiceDto() {
     }
 
-    public ServiceDto(Long id, String name, String type, String operationalState, String administrativeState, String notes, String customer, ArrayList<String> devices, ArrayList<AdditionalAttribute> additionalAttributes) {
+    public ServiceDto(Long id, String name, String type, String operationalState, String administrativeState, String notes, String customer, ArrayList<String> devices, ArrayList<String> logicalconnection, ArrayList<String> physicalconnection, ArrayList<AdditionalAttribute> additionalAttributes) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -36,6 +39,8 @@ public class ServiceDto {
         this.notes = notes;
         this.customer = customer;
         this.devices = devices;
+        this.logicalconnection = logicalconnection;
+        this.physicalconnection = physicalconnection;
         this.additionalAttributes = additionalAttributes;
     }
 
@@ -109,5 +114,21 @@ public class ServiceDto {
 
     public void setAdditionalAttributes(ArrayList<AdditionalAttribute> additionalAttributes) {
         this.additionalAttributes = additionalAttributes;
+    }
+
+    public ArrayList<String> getLogicalconnection() {
+        return logicalconnection;
+    }
+
+    public void setLogicalconnection(ArrayList<String> logicalconnection) {
+        this.logicalconnection = logicalconnection;
+    }
+
+    public ArrayList<String> getPhysicalconnection() {
+        return physicalconnection;
+    }
+
+    public void setPhysicalconnection(ArrayList<String> physicalconnection) {
+        this.physicalconnection = physicalconnection;
     }
 }

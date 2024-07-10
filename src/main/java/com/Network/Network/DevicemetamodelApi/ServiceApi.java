@@ -24,6 +24,11 @@ public class ServiceApi {
     private DeviceRepo deviceRepo;
     @Autowired
     private AppExceptionHandler appExceptionHandler;
+
+    @Autowired
+    private LogicalConnectionRepo logicalConnectionRepo;
+    @Autowired
+    private PhysicalConnectionRepo physicalConnectionRepo;
     @Autowired
     OrderRepo orderRepo;
 
@@ -32,7 +37,7 @@ public class ServiceApi {
         Service savedService = null;
         try {
             Optional<Order> order = orderRepo.findById(orderid);
-            Order exOrder=order.get();
+            Order exOrder = order.get();
             if (!order.isPresent()) {
                 appExceptionHandler.raiseException("given order is not found");
             }
@@ -54,6 +59,28 @@ public class ServiceApi {
                     devices.add(device);
                 }
             }
+
+            List<PhysicalConnection> physicalConnections = new ArrayList<>();
+            if (serviceDTO.getPhysicalconnection() != null && !serviceDTO.getPhysicalconnection().isEmpty()) {
+                for (String physicalconnnection : serviceDTO.getPhysicalconnection()) {
+                    PhysicalConnection physicalConnection = physicalConnectionRepo.findByName(physicalconnnection);
+                    if (physicalConnection == null) {
+                        appExceptionHandler.raiseException("physicalConnection with name " + physicalConnection + " not found.");
+                    }
+                    physicalConnections.add(physicalConnection);
+                }
+            }
+
+            List<LogicalConnection> LogicalConnections = new ArrayList<>();
+            if (serviceDTO.getLogicalconnection() != null && !serviceDTO.getLogicalconnection().isEmpty()) {
+                for (String LogicalConnection : serviceDTO.getLogicalconnection()) {
+                    LogicalConnection logicalConnection = logicalConnectionRepo.findByName(LogicalConnection);
+                    if (logicalConnection == null) {
+                        appExceptionHandler.raiseException("LogicalConnection with name " + LogicalConnection + " not found.");
+                    }
+                    LogicalConnections.add(logicalConnection);
+                }
+            }
             Service service = new Service();
             service.setName(serviceDTO.getName());
             service.setType(serviceDTO.getType());
@@ -63,6 +90,8 @@ public class ServiceApi {
             service.setCustomer(customer);
             service.setDevices(devices);
             service.setOrder(exOrder);
+            service.setLogicalConnections(LogicalConnections);
+            service.setPhysicalConnections(physicalConnections);
             savedService = serviceRepo.save(service);
             List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
             if (serviceDTO.getAdditionalAttributes() != null && !serviceDTO.getAdditionalAttributes().isEmpty()) {
@@ -113,13 +142,11 @@ public class ServiceApi {
                 appExceptionHandler.raiseException("Service with ID " + serviceId + " not found.");
             }
             Service existingService = serviceOptional.get();
-            if (!serviceDTO.getName().equals(existingService.getName()))
-            {
-               existingService=serviceRepo.findByName(serviceDTO.getName());
-               if (existingService!=null)
-               {
-                   appExceptionHandler.raiseException("given Service name  already exists");
-               }
+            if (!serviceDTO.getName().equals(existingService.getName())) {
+                existingService = serviceRepo.findByName(serviceDTO.getName());
+                if (existingService != null) {
+                    appExceptionHandler.raiseException("given Service name  already exists");
+                }
             }
             // Update service attributes
             existingService.setName(serviceDTO.getName());
@@ -165,7 +192,6 @@ public class ServiceApi {
         }
         return savedService;
     }
-
 
 
 }

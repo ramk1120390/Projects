@@ -3,6 +3,10 @@ package com.Network.Network.Exception;
 
 public class ExceptionDetails {
     String exceptionId;
+    String inputMessage;
+
+    public ExceptionDetails() {
+    }
 
     public ExceptionDetails(String exceptionId, String inputMessage) {
         this.exceptionId = exceptionId;
@@ -24,6 +28,4 @@ public class ExceptionDetails {
     public void setInputMessage(String inputMessage) {
         this.inputMessage = inputMessage;
     }
-
-    String inputMessage;
 }
