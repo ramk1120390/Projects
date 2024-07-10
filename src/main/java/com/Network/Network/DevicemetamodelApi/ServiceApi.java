@@ -60,6 +60,7 @@ public class ServiceApi {
                 }
             }
 
+
             List<PhysicalConnection> physicalConnections = new ArrayList<>();
             if (serviceDTO.getPhysicalconnection() != null && !serviceDTO.getPhysicalconnection().isEmpty()) {
                 for (String physicalconnnection : serviceDTO.getPhysicalconnection()) {
