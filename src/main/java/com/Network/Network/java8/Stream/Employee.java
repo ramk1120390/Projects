@@ -248,14 +248,19 @@ public class Employee {
         //7:Partion by
         Map<Boolean, List<Integer>> map = integerList1.stream().collect(Collectors.partitioningBy(num -> num % 2 == 0));
         System.out.println(map);
-        System.out.println("odd number "+map.get(Boolean.FALSE));
-        System.out.println("Even number "+map.get(Boolean.TRUE));
+        System.out.println("odd number " + map.get(Boolean.FALSE));
+        System.out.println("Even number " + map.get(Boolean.TRUE));
         //8:IntStream ranges
-        List<Integer>instream1=IntStream.range(1,20).boxed().collect(Collectors.toList());
+        List<Integer> instream1 = IntStream.range(1, 20).boxed().collect(Collectors.toList());
         System.out.println(instream1);
-        List<Integer>instream2=IntStream.rangeClosed(1,20).boxed().collect(Collectors.toList());
+        List<Integer> instream2 = IntStream.rangeClosed(1, 20).boxed().collect(Collectors.toList());
         System.out.println(instream2);
 
+
+        //Sorted Salary based asc
+
+        List<Customers> salasc = getAll().stream().sorted((c1, c2) -> Integer.compare(c1.getIncome(), c2.getIncome()))
+                .collect(Collectors.toList());
 
 
     }

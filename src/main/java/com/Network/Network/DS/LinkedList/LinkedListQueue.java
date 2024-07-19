@@ -29,7 +29,7 @@ public class LinkedListQueue {
         }
         int temp = front.data;
         front = front.next;
-        if (front == null) {
+        if (front == null) { ///for Queue is size 1
             rear = null;
         }
         return temp;

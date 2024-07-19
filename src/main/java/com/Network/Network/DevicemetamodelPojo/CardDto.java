@@ -1,5 +1,6 @@
 package com.Network.Network.DevicemetamodelPojo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,6 +25,7 @@ public class CardDto {
     private String usageState;
     private String href;
     private Long orderId;
+    @JsonIgnore
     private  String realation;
     private ArrayList<AdditionalAttribute> additionalAttributes;
 

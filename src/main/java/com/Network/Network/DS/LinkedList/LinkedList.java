@@ -96,6 +96,23 @@ public class LinkedList {
         head = previous;  // Reset the head to the new front of the list
     }
 
+    public void findMiddle() {
+        if (head == null) {
+            System.out.println("The list is empty.");
+            return;
+        }
+
+        Node slow = head;
+        Node fast = head;
+
+        while (fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+
+        System.out.println("The middle node value is: " + slow.data);
+    }
+
     public static void main(String[] args) {
         LinkedList lc = new LinkedList();
         lc.InsertBegin(1);
@@ -108,6 +125,8 @@ public class LinkedList {
 
         lc.insertAtPos(2, 10);
         lc.display(); // Should print: 3 2 10 1 5
+
+        lc.findMiddle();
 
         try {
             lc.insertAtPos(10, 12); // This will throw an exception

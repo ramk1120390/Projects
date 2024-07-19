@@ -1216,9 +1216,10 @@ public class DeviceApi {
 
     @GetMapping("/search")
     public JsonNode search(@RequestParam String tableName, @RequestParam String columnName,
-                           @RequestParam String searchTerm, @RequestParam(defaultValue = "contains") String filterType) {
+                           @RequestParam String searchTerm, @RequestParam String typedata,
+                           @RequestParam(defaultValue = "contains") String filterType) {
         try {
-            JsonNode result = globalSearch(tableName, columnName, searchTerm, filterType);
+            JsonNode result = globalSearch(tableName, columnName, searchTerm, typedata, filterType);
             if (result == null || result.isEmpty()) {
                 return objectMapper.createObjectNode().put("empty", true);
             } else {
@@ -1229,13 +1230,12 @@ public class DeviceApi {
         }
     }
 
-    public JsonNode globalSearch(String tableName, String columnName, String searchTerm, String filterType) throws
+    public JsonNode globalSearch(String tableName, String columnName, String searchTerm, String typedata, String filterType) throws
             SQLException, JsonProcessingException {
-        String query = "SELECT global_search(?, ?, ?, ?)";
-        String jsonString = jdbcTemplate.queryForObject(query, new Object[]{tableName, columnName, searchTerm, filterType}, String.class);
+        String query = "SELECT global_search(?, ?, ?, ?, ?)";
+        String jsonString = jdbcTemplate.queryForObject(query, new Object[]{tableName, columnName, searchTerm, typedata, filterType}, String.class);
         return objectMapper.readTree(jsonString);
     }
-
 
     private List<Integer> AvilableShef(@RequestParam("Name") String Name) {
 
@@ -2174,8 +2174,117 @@ public class DeviceApi {
     }
 
 
+    //TODO TMF Api create and Update Device
+
+  /*  @PostMapping("TMFAPI")
+    public Device CreateDeviceTMF(@RequestBody TmfResponce device) {
+        DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.
+                findByDeviceModel(device.getDeviceDto().getDeviceModel());
+        if (deviceMetaModel == null) {
+            appExceptionHandler.raiseException("Given Device Metamodel Not Found");
+        }
+        Optional<Order> exorder = orderRepo.findById(device.getDeviceDto().getOrderid());
+        if (!exorder.isPresent()) {
+            appExceptionHandler.raiseException("Given Order is Not found");
+        }
+        Order order = exorder.get();
+        Building exbuilding = buildingRepo.findByBuildingName(device.getDeviceDto().getBuildingname());
+        if (exbuilding == null) {
+            appExceptionHandler.raiseException("given Building Not Found");
+        }
+        Device exdevice = deviceRepo.findByDevicename(device.getDeviceDto().getDevicename().toLowerCase());
+        if (exdevice != null) {
+            appExceptionHandler.raiseException("Given Device Already Found");
+        }
+        exdevice.setDevicename(device.getDevicename().toLowerCase());
+        exdevice.setDeviceModel(device.getDeviceModel());
+        exdevice.setBuilding(exbuilding);
+        exdevice.setLocation(device.getLocation());
+        exdevice.setOrganisation(device.getOrganisation());
+        exdevice.setCustomer(order.getCustomer().getCustomername());
+        exdevice.setManagementIp(device.getManagementIp());
+        exdevice.setRackPosition(device.getRackPosition());
+        exdevice.setOperationalState(device.getOperationalState());
+        exdevice.setAdministrativeState(device.getAdministrativeState());
+        exdevice.setUsageState(device.getUsageState());
+        exdevice.setSerialNumber(device.getSerialNumber());
+        exdevice.setHref(device.getHref());
+        exdevice.setAccessKey(device.getAccessKey());
+        exdevice.setPollInterval(device.getPollInterval());
+        exdevice.setOrder(order);
+        exdevice.setRealtion("BUILDING_TO_DEVICE");
+        deviceRepo.save(exdevice);
+        List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
+        if (device.getAdditionalAttributes() != null && !device.getAdditionalAttributes().isEmpty()) {
+            for (AdditionalAttribute additionalAttributeDTO : device.getAdditionalAttributes()) {
+                AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                additionalAttributes.add(savedAdditionalAttribute);
+            }
+            exdevice.setAdditionalAttributes(additionalAttributes);
+            deviceRepo.save(exdevice);
+        }
+        int ShelfContained = deviceMetaModel.getShelvesContained();
+        if (ShelfContained > 0) {
+            for (int i = 0; i < ShelfContained; i++) {
+                ArrayList<Shelf> shelves = new ArrayList<>();
+                Shelf shelf = new Shelf();
+                shelf.setName(device.getDevicename().toLowerCase() + "_shelf" + i);
+                shelf.setRealtion("DEVICE_TO_SHELF");
+                shelf.setOperationalState(device.getOperationalState());
+                shelf.setAdministrativeState(device.getAdministrativeState());
+                shelf.setUsageState(device.getUsageState());
+                shelf.setDevice(exdevice);
+                shelf.setHref(device.getHref());
+                shelf.setShelfPosition(i);
+                shelves.add(shelf);
+                shelfRepo.saveAll(shelves);
+            }
+            if (!device.getCardDtos().isEmpty() && device.getCardDtos() != null) {
 
 
+            }
+        }
+
+        if (!device.getCardDtos().isEmpty()) {
+            for (CardDto cardDto : device.getCardDtos()) {
+                Device cardDevice = deviceRepo.findByDevicename(cardDto.getDevicename());
+                if (cardDevice == null) {
+
+                }
+                String DeviceMetamodel = cardDevice.getDeviceModel();
+                ArrayList<String> allowedCards = deviceMetaModelRepo.findAll().stream()
+                        .filter(deviceMetaModel1 -> deviceMetaModel1.getDeviceModel().equals(DeviceMetamodel))
+                        .flatMap(deviceMetaModel1 -> deviceMetaModel1.getAllowedCardList().stream())
+                        .collect(Collectors.toCollection(ArrayList::new));
+                Card excard = cardRepo.findCardsByCardNameAndDeviceName(cardDto.getCardname(), cardDto.getDevicename());
+                if (excard != null) {
+
+                }
+                Optional<Order> cardorder = orderRepo.findById(cardDto.getOrderId());
+                if (!cardorder.isPresent()) {
+
+                }
+                if (!allowedCards.contains(cardDto.getCardModel())) {
+
+
+
+                }
+
+
+
+            }
+
+
+        }
+
+
+        return null;
+    }
+
+   */
 }
 
 

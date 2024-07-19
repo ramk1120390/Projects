@@ -870,42 +870,109 @@ END;
 $$;
 ------------------- end------------------------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION global_search(table_name TEXT, column_name TEXT, search_term TEXT, filter_type TEXT DEFAULT 'contains')
+CREATE OR REPLACE FUNCTION global_search(
+    table_name TEXT,
+    column_name TEXT,
+    search_term TEXT,
+    typedata TEXT,
+    filter_type TEXT DEFAULT 'contains'
+)
 RETURNS JSON AS $$
 DECLARE
     result JSON;
     filter_condition TEXT;
+    filter_query TEXT;
 BEGIN
     -- Construct the filter condition based on the filter_type parameter
-    CASE filter_type
-        WHEN 'contains' THEN
-            filter_condition := '%' || search_term || '%';
-        WHEN 'startwith' THEN
-            filter_condition := search_term || '%';
-        WHEN 'endwith' THEN
-            filter_condition := '%' || search_term;
-        ELSE
-            RAISE EXCEPTION 'Invalid filter_type: %', filter_type;
-    END CASE;
+    IF typedata = 'String' THEN
+        CASE filter_type
+            WHEN 'contains' THEN
+                filter_condition := '%' || search_term || '%';
+            WHEN 'startwith' THEN
+                filter_condition := search_term || '%';
+            WHEN 'endwith' THEN
+                filter_condition := '%' || search_term;
+            ELSE
+                RAISE EXCEPTION 'Invalid filter_type: %', filter_type;
+        END CASE;
+
+        filter_query := FORMAT('
+            SELECT json_agg(t)
+            FROM (
+                SELECT *
+                FROM %I
+                WHERE CAST(%I AS TEXT) LIKE $1
+            ) t', table_name, column_name);
+
+    ELSIF typedata = 'float' THEN
+        CASE filter_type
+            WHEN 'contains' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I = CAST($1 AS FLOAT4)
+                    ) t', table_name, column_name);
+            WHEN 'startwith' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I >= CAST($1 AS FLOAT4)
+                    ) t', table_name, column_name);
+            WHEN 'endwith' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I <= CAST($1 AS FLOAT4)
+                    ) t', table_name, column_name);
+            ELSE
+                RAISE EXCEPTION 'Invalid filter_type: %', filter_type;
+        END CASE;
+
+    ELSIF typedata = 'INTEGER' THEN
+        CASE filter_type
+            WHEN 'contains' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I = CAST($1 AS INTEGER)
+                    ) t', table_name, column_name);
+            WHEN 'startwith' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I >= CAST($1 AS INTEGER)
+                    ) t', table_name, column_name);
+            WHEN 'endwith' THEN
+                filter_query := FORMAT('
+                    SELECT json_agg(t)
+                    FROM (
+                        SELECT *
+                        FROM %I
+                        WHERE %I <= CAST($1 AS INTEGER)
+                    ) t', table_name, column_name);
+            ELSE
+                RAISE EXCEPTION 'Invalid filter_type: %', filter_type;
+        END CASE;
+    ELSE
+        RAISE EXCEPTION 'Invalid typedata: %', typedata;
+    END IF;
 
     -- Construct and execute the dynamic SQL query
-    EXECUTE FORMAT('
-        SELECT json_agg(t)
-        FROM (
-            SELECT *
-            FROM %I
-            WHERE CASE
-                WHEN $1 ~ ''^\d+$'' THEN %I::INTEGER = $1::INTEGER
-                ELSE CAST(%I AS TEXT) LIKE $2
-            END
-        ) t', table_name, column_name, column_name)
-    INTO result
-    USING search_term, filter_condition; -- Pass filter_condition directly
-    
+    EXECUTE filter_query INTO result USING search_term;
+
     RETURN result;
 END;
 $$ LANGUAGE plpgsql;
-
 
 
 ------------------------- end------------------------------------------------------------------------------------
