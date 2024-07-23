@@ -16,7 +16,6 @@ public class Port implements Serializable {    //if we are creating port on card
     //if creating
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-
     private Long portid;
     private String portname;
     private Integer positionOnCard;

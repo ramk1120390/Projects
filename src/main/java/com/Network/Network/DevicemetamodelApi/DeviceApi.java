@@ -2,7 +2,10 @@ package com.Network.Network.DevicemetamodelApi;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.Network.Network.DevicemetamodelPojo.*;
 import com.Network.Network.DevicemetamodelRepo.*;
@@ -974,7 +977,6 @@ public class DeviceApi {
 
     @Autowired
     LogicalPortRepo logicalPortRepo;
-    //TODO db based trigger update delete for addtional attribute
 
     @PostMapping("/CreateLogicalPortOnCard")
     public ResponseEntity<String> createLogicalPortOnCard(@RequestParam("id") Long id,
@@ -2176,115 +2178,487 @@ public class DeviceApi {
 
     //TODO TMF Api create and Update Device
 
-  /*  @PostMapping("TMFAPI")
-    public Device CreateDeviceTMF(@RequestBody TmfResponce device) {
-        DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.
-                findByDeviceModel(device.getDeviceDto().getDeviceModel());
+    @PostMapping("TMFAPI")
+    @Transactional
+    public String CreateDeviceTMF(@RequestBody TmfResponce device) {
+        logger.info("Received request to create device: {}", device.getDeviceDto().getDevicename());
+        DeviceMetaModel deviceMetaModel = deviceMetaModelRepo.findByDeviceModel(device.getDeviceDto().getDeviceModel());
         if (deviceMetaModel == null) {
+            logger.error("Device MetaModel not found for model: {}", device.getDeviceDto().getDeviceModel());
             appExceptionHandler.raiseException("Given Device Metamodel Not Found");
         }
-        Optional<Order> exorder = orderRepo.findById(device.getDeviceDto().getOrderid());
-        if (!exorder.isPresent()) {
+
+      /*  HashSet<Long> orderIds = (HashSet<Long>) DeviceApi.getOrderIdSet(device);
+        Long minOrderId = (orderIds.size() == 1) ? orderIds.iterator().next() : Collections.min(orderIds);
+        Long maxOrderId = (orderIds.size() == 1) ? orderIds.iterator().next() : Collections.max(orderIds);
+
+        List<Long> ordersInRange = orderRepo.findOrdersInRange(minOrderId, maxOrderId).stream().map(Order::getId).collect(Collectors.toList());
+        if (!ordersInRange.containsAll(orderIds)) {
+            logger.error("Invalid Order IDs provided: {}", orderIds);
+            appExceptionHandler.raiseException("Please give Valid Order id");
+        }
+
+       */
+
+        Optional<Order> optionalOrder = orderRepo.findById(device.getDeviceDto().getOrderid());
+        if (!optionalOrder.isPresent()) {
+            logger.error("Order not found for ID: {}", device.getDeviceDto().getOrderid());
             appExceptionHandler.raiseException("Given Order is Not found");
         }
-        Order order = exorder.get();
-        Building exbuilding = buildingRepo.findByBuildingName(device.getDeviceDto().getBuildingname());
-        if (exbuilding == null) {
-            appExceptionHandler.raiseException("given Building Not Found");
+
+        Order order = optionalOrder.get();
+        Building building = buildingRepo.findByBuildingName(device.getDeviceDto().getBuildingname());
+        if (building == null) {
+            logger.error("Building not found for name: {}", device.getDeviceDto().getBuildingname());
+            appExceptionHandler.raiseException("Given Building Not Found");
         }
-        Device exdevice = deviceRepo.findByDevicename(device.getDeviceDto().getDevicename().toLowerCase());
-        if (exdevice != null) {
+
+        Device existingDevice = deviceRepo.findByDevicename(device.getDeviceDto().getDevicename().toLowerCase());
+        if (existingDevice != null) {
+            logger.error("Device already exists with name: {}", device.getDeviceDto().getDevicename().toLowerCase());
             appExceptionHandler.raiseException("Given Device Already Found");
         }
-        exdevice.setDevicename(device.getDevicename().toLowerCase());
-        exdevice.setDeviceModel(device.getDeviceModel());
-        exdevice.setBuilding(exbuilding);
-        exdevice.setLocation(device.getLocation());
-        exdevice.setOrganisation(device.getOrganisation());
-        exdevice.setCustomer(order.getCustomer().getCustomername());
-        exdevice.setManagementIp(device.getManagementIp());
-        exdevice.setRackPosition(device.getRackPosition());
-        exdevice.setOperationalState(device.getOperationalState());
-        exdevice.setAdministrativeState(device.getAdministrativeState());
-        exdevice.setUsageState(device.getUsageState());
-        exdevice.setSerialNumber(device.getSerialNumber());
-        exdevice.setHref(device.getHref());
-        exdevice.setAccessKey(device.getAccessKey());
-        exdevice.setPollInterval(device.getPollInterval());
-        exdevice.setOrder(order);
-        exdevice.setRealtion("BUILDING_TO_DEVICE");
-        deviceRepo.save(exdevice);
+
+        Device newDevice = new Device();
+        newDevice.setDevicename(device.getDeviceDto().getDevicename().toLowerCase());
+        newDevice.setDeviceModel(device.getDeviceDto().getDeviceModel());
+        newDevice.setBuilding(building);
+        newDevice.setLocation(device.getDeviceDto().getLocation());
+        newDevice.setOrganisation(device.getDeviceDto().getOrganisation());
+        newDevice.setCustomer(order.getCustomer().getCustomername());
+        newDevice.setManagementIp(device.getDeviceDto().getManagementIp());
+        newDevice.setRackPosition(device.getDeviceDto().getRackPosition());
+        newDevice.setOperationalState(device.getDeviceDto().getOperationalState());
+        newDevice.setAdministrativeState(device.getDeviceDto().getAdministrativeState());
+        newDevice.setUsageState(device.getDeviceDto().getUsageState());
+        newDevice.setSerialNumber(device.getDeviceDto().getSerialNumber());
+        newDevice.setHref(device.getDeviceDto().getHref());
+        newDevice.setAccessKey(device.getDeviceDto().getAccessKey());
+        newDevice.setPollInterval(device.getDeviceDto().getPollInterval());
+        newDevice.setOrder(order);
+        newDevice.setRealtion("BUILDING_TO_DEVICE");
+
+        deviceRepo.save(newDevice);
+        logger.info("Device saved successfully: {}", newDevice.getDevicename());
+
         List<AdditionalAttribute> additionalAttributes = new ArrayList<>();
-        if (device.getAdditionalAttributes() != null && !device.getAdditionalAttributes().isEmpty()) {
-            for (AdditionalAttribute additionalAttributeDTO : device.getAdditionalAttributes()) {
+        if (device.getDeviceDto().getAdditionalAttributes() != null && !device.getDeviceDto().getAdditionalAttributes().isEmpty()) {
+            for (AdditionalAttribute additionalAttributeDTO : device.getDeviceDto().getAdditionalAttributes()) {
                 AdditionalAttribute additionalAttribute = new AdditionalAttribute();
                 additionalAttribute.setKey(additionalAttributeDTO.getKey());
                 additionalAttribute.setValue(additionalAttributeDTO.getValue());
                 AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
                 additionalAttributes.add(savedAdditionalAttribute);
             }
-            exdevice.setAdditionalAttributes(additionalAttributes);
-            deviceRepo.save(exdevice);
+            newDevice.setAdditionalAttributes(additionalAttributes);
+            deviceRepo.save(newDevice);
+            logger.info("Additional attributes saved for device: {}", newDevice.getDevicename());
         }
-        int ShelfContained = deviceMetaModel.getShelvesContained();
-        if (ShelfContained > 0) {
-            for (int i = 0; i < ShelfContained; i++) {
-                ArrayList<Shelf> shelves = new ArrayList<>();
-                Shelf shelf = new Shelf();
-                shelf.setName(device.getDevicename().toLowerCase() + "_shelf" + i);
-                shelf.setRealtion("DEVICE_TO_SHELF");
-                shelf.setOperationalState(device.getOperationalState());
-                shelf.setAdministrativeState(device.getAdministrativeState());
-                shelf.setUsageState(device.getUsageState());
-                shelf.setDevice(exdevice);
-                shelf.setHref(device.getHref());
-                shelf.setShelfPosition(i);
-                shelves.add(shelf);
+        additionalAttributes.clear();
+
+        int shelfContained = deviceMetaModel.getShelvesContained();
+        logger.info("Device {} contains {} shelves.", device.getDeviceDto().getDevicename(), shelfContained);
+        ArrayList<Shelf> shelves = new ArrayList<>();
+        if (shelfContained > 0) {
+            try {
+                for (int i = 1; i <= shelfContained; i++) {
+                    Shelf shelf = new Shelf();
+                    shelf.setName(device.getDeviceDto().getDevicename().toLowerCase() + "_shelf" + i);
+                    shelf.setRealtion("DEVICE_TO_SHELF");
+                    shelf.setOperationalState(device.getDeviceDto().getOperationalState());
+                    shelf.setAdministrativeState(device.getDeviceDto().getAdministrativeState());
+                    shelf.setUsageState(device.getDeviceDto().getUsageState());
+                    shelf.setDevice(existingDevice);
+                    shelf.setHref(device.getDeviceDto().getHref());
+                    shelf.setShelfPosition(i);
+                    shelves.add(shelf);
+                }
                 shelfRepo.saveAll(shelves);
-            }
-            if (!device.getCardDtos().isEmpty() && device.getCardDtos() != null) {
+                // logger.info("Shelf {} saved successfully for device {}", shelf.getName(), device.getDeviceDto().getDevicename());
 
-
+            } catch (Exception e) {
+                logger.error("Error occurred while saving shelves for device {}: {}", device.getDeviceDto().getDevicename(), e.getMessage());
+                e.printStackTrace();
+                appExceptionHandler.raiseException(e.getMessage());
             }
         }
-
         if (!device.getCardDtos().isEmpty()) {
-            for (CardDto cardDto : device.getCardDtos()) {
-                Device cardDevice = deviceRepo.findByDevicename(cardDto.getDevicename());
-                if (cardDevice == null) {
+            logger.info("Processing cards for device {}", device.getDeviceDto().getDevicename());
+            try {
+                for (CardDto cardDto : device.getCardDtos()) {
+                    Device cardDevice = deviceRepo.findByDevicename(cardDto.getDevicename());
+                    if (cardDevice == null) {
+                        logger.error("Device not found: {}", cardDto.getDevicename());
+                        appExceptionHandler.raiseException("Given Device is Not Found");
+                    }
 
+                    String deviceMetamodel = cardDevice.getDeviceModel();
+                    ArrayList<String> allowedCards = deviceMetaModelRepo.findAll().stream()
+                            .filter(deviceMetaModel1 -> deviceMetaModel1.getDeviceModel().equals(deviceMetamodel))
+                            .flatMap(deviceMetaModel1 -> deviceMetaModel1.getAllowedCardList().stream())
+                            .collect(Collectors.toCollection(ArrayList::new));
+
+                    Card existingCard = cardRepo.findCardsByCardNameAndDeviceName(cardDto.getCardname(), cardDto.getDevicename());
+                    if (existingCard != null) {
+                        logger.error("Card already exists: {} for device {}", cardDto.getCardname(), cardDto.getDevicename());
+                        appExceptionHandler.raiseException("Given Card name is Already Found");
+                    }
+
+                    Optional<Order> cardOrder = orderRepo.findById(cardDto.getOrderId());
+                    if (!cardOrder.isPresent()) {
+                        logger.error("Order not found: {}", cardDto.getOrderId());
+                        appExceptionHandler.raiseException("Given Order is not Found");
+                    }
+
+                    if (!allowedCards.contains(cardDto.getCardModel())) {
+                        logger.error("Card model {} is not compatible with device {}", cardDto.getCardModel(), cardDto.getDevicename());
+                        appExceptionHandler.raiseException("Given Card is not Compatible");
+                    }
+
+                    String shelfName = cardDto.getDevicename().toLowerCase() + "_shelf" + cardDto.getShelfPosition();
+                    Shelf existingShelf = shelfRepo.findShelfByName(shelfName);
+                    if (existingShelf == null) {
+                        logger.error("Shelf not found or is unavailable: {}", shelfName);
+                        appExceptionHandler.raiseException("Given Shelf is not found or unavailable at position " + cardDto.getShelfPosition());
+                    }
+
+                    String slotName = cardDto.getDevicename().toLowerCase() + "/" + cardDto.getShelfPosition() + "/" + cardDto.getSlotPosition();
+                    Slot existingSlot = slotRepo.findBySlotname(slotName);
+                    if (existingSlot != null) {
+                        logger.error("Slot already occupied: {}", slotName);
+                        appExceptionHandler.raiseException("Given Slot Already Occupied");
+                    }
+
+                    Slot newSlot = new Slot();
+                    newSlot.setSlotname(slotName);
+                    newSlot.setSlotPosition(cardDto.getSlotPosition());
+                    newSlot.setOperationalState(cardDto.getOperationalState());
+                    newSlot.setAdministrativeState(cardDto.getAdministrativeState());
+                    newSlot.setUsageState(cardDto.getUsageState());
+                    newSlot.setHref(cardDto.getHref());
+                    newSlot.setRelation("SHELF_TO_SLOT");
+                    newSlot.setShelf(existingShelf);
+                    slotRepo.save(newSlot);
+
+                    if (existingCard == null) {
+                        CardId cardId = new CardId();
+                        cardId.setDevice(cardDevice);
+                        cardId.setCardname(cardDto.getCardname());
+                        Long id = cardRepo.findAll().stream()
+                                .map(Card::getCardid)  // Map each Card to its cardid
+                                .max(Long::compare)  // Find the maximum cardid
+                                .orElse(1L);  // Return 1 if no cards are present
+                        existingCard = new Card();
+                        existingCard.setCardid(id + 1);
+                        existingCard.setId(cardId);
+                        existingCard.setSlot(newSlot);
+                        existingCard.setShelfPosition(cardDto.getShelfPosition());
+                        existingCard.setSlotPosition(cardDto.getSlotPosition());
+                        existingCard.setVendor(cardDto.getVendor());
+                        existingCard.setCardModel(cardDto.getCardModel());
+                        existingCard.setCardPartNumber(cardDto.getCardPartNumber());
+                        existingCard.setOperationalState(cardDto.getOperationalState());
+                        existingCard.setAdministrativeState(cardDto.getAdministrativeState());
+                        existingCard.setUsageState(cardDto.getUsageState());
+                        existingCard.setHref(cardDto.getHref());
+                        existingCard.setRealation("SLOT_TO_CARD");
+                        cardRepo.save(existingCard);
+                    }
+
+                    if (cardDto.getAdditionalAttributes() != null && !cardDto.getAdditionalAttributes().isEmpty()) {
+                        for (AdditionalAttribute additionalAttributeDTO : cardDto.getAdditionalAttributes()) {
+                            AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                            additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                            additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                            AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                            additionalAttributes.add(savedAdditionalAttribute);
+                        }
+                        existingCard.setAdditionalAttributes(additionalAttributes);
+                        cardRepo.save(existingCard);
+                        logger.info("Additional attributes saved for card {} in device {}", cardDto.getCardname(), cardDto.getDevicename());
+                    }
                 }
-                String DeviceMetamodel = cardDevice.getDeviceModel();
-                ArrayList<String> allowedCards = deviceMetaModelRepo.findAll().stream()
-                        .filter(deviceMetaModel1 -> deviceMetaModel1.getDeviceModel().equals(DeviceMetamodel))
-                        .flatMap(deviceMetaModel1 -> deviceMetaModel1.getAllowedCardList().stream())
-                        .collect(Collectors.toCollection(ArrayList::new));
-                Card excard = cardRepo.findCardsByCardNameAndDeviceName(cardDto.getCardname(), cardDto.getDevicename());
-                if (excard != null) {
-
-                }
-                Optional<Order> cardorder = orderRepo.findById(cardDto.getOrderId());
-                if (!cardorder.isPresent()) {
-
-                }
-                if (!allowedCards.contains(cardDto.getCardModel())) {
-
-
-
-                }
-
-
-
+            } catch (Exception e) {
+                logger.error("Error processing cards for device {}: {}", device.getDeviceDto().getDevicename(), e.getMessage());
+                e.printStackTrace();
+                appExceptionHandler.raiseException(e.getMessage());
             }
-
-
         }
 
 
-        return null;
+        CardSlot newCardSlot = new CardSlot();
+        Device exDevice = new Device();
+
+        if (!device.getPortDTOS().isEmpty()) {
+            logger.info("Processing ports for device {}", device.getDeviceDto().getDevicename());
+
+            try {
+                String portType = null;
+                HashSet<String> deviceNames = device.getPortDTOS().stream().map(PortDTO::getDeviceName)
+                        .collect(Collectors.toCollection(HashSet::new));
+                List<String> buildingDeviceNames = deviceRepo.findAll().stream()
+                        .filter(device2 -> device2.getBuilding().getBuildingName().contains(device.getDeviceDto().getDevicename()))
+                        .map(Device::getDevicename)
+                        .collect(Collectors.toList());
+                if (!deviceNames.containsAll(buildingDeviceNames)) {
+                    logger.error("Device names must be within the building");
+                    appExceptionHandler.raiseException("Device Name must be Within the Building");
+                }
+                for (PortDTO portDTO : device.getPortDTOS()) {
+                    if ((portDTO.getPositionOnDevice() == 0 && portDTO.getPositionOnCard() == 0) ||
+                            (portDTO.getPositionOnDevice() != 0 && portDTO.getPositionOnCard() != 0)) {
+                        logger.error("Invalid format input for port: {}", portDTO);
+                        appExceptionHandler.raiseException("Please give Valid Format Input");
+                    }
+                    Port exPort = portRepo.findPortByDeviceNameAndPortName(portDTO.getDeviceName(), portDTO.getPortname());
+                    if (exPort != null) {
+                        logger.error("Given port already exists: {}", portDTO.getPortname());
+                        appExceptionHandler.raiseException("Given port already exists");
+                    }
+                    if (portDTO.getPositionOnDevice() != 0) {
+                        portType = "Device";
+                        Pluggable exPluggable = pluggableRepo.findByDeviceNameAndPositionOnDevice(portDTO.getDeviceName(),
+                                portDTO.getPositionOnDevice());
+                        if (exPluggable != null) {
+                            logger.error("Position already assigned to a pluggable device: {}", portDTO.getPositionOnDevice());
+                            appExceptionHandler.raiseException("Given position already assigned to a pluggable device");
+                        }
+                        exPort = portRepo.findByDeviceNameAndPositionOnDevice(portDTO.getDeviceName(), portDTO.getPositionOnDevice());
+                        if (exPort != null) {
+                            logger.error("Position already assigned to another port: {}", portDTO.getPositionOnDevice());
+                            appExceptionHandler.raiseException("Given position already assigned to another port");
+                        }
+                    } else {
+                        portType = "Card";
+                        Card exCard = cardRepo.findCardsByCardNameAndDeviceName(portDTO.getCardname(), portDTO.getDeviceName());
+                        if (exCard == null) {
+                            logger.error("Card not found for device: {}", portDTO.getDeviceName());
+                            appExceptionHandler.raiseException("Given Card with Device Name Not Found");
+                        }
+                        Long cardId = exCard.getCardid();
+                        String cardName = exCard.getId().getCardname();
+                        String cardSlotName = cardName + cardId + "/" + portDTO.getPositionOnCard();
+                        Pluggable exPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(cardSlotName, portDTO.getPositionOnCard());
+                        if (exPluggable != null) {
+                            logger.error("Given card slot already found: {}", cardSlotName);
+                            appExceptionHandler.raiseException("Given cardslot already found");
+                        }
+                        exPort = portRepo.findPortsByCardSlotNameAndPositionOnCard(cardSlotName, portDTO.getPositionOnCard());
+                        if (exPort != null) {
+                            logger.error("Given card slot already found: {}", cardSlotName);
+                            appExceptionHandler.raiseException("Given cardslot already found");
+                        }
+                        newCardSlot = new CardSlot();
+                        newCardSlot.setName(cardSlotName);
+                        newCardSlot.setOperationalState(portDTO.getOperationalState());
+                        newCardSlot.setAdministrativeState(portDTO.getAdministrativeState());
+                        newCardSlot.setUsageState(portDTO.getUsageState());
+                        newCardSlot.setHref(portDTO.getHref());
+                        newCardSlot.setRealation("CARD-TO-CARDSLOT");
+                        newCardSlot.setSlotPosition(portDTO.getPositionOnCard());
+                        newCardSlot.setCardname(portDTO.getCardname());
+                        newCardSlot.setCard(exCard);
+                        carslotRepo.save(newCardSlot);
+                    }
+                    Port newPort = new Port();
+                    exDevice = deviceRepo.findDevicesByName(portDTO.getDeviceName().toLowerCase());
+                    Optional<Order> portOrder = orderRepo.findById(portDTO.getOrderId());
+                    if (portOrder.isPresent()) {
+                        newPort.setOrder(portOrder.get());
+                    }
+                    newPort.setPortname(portDTO.getPortname());
+                    newPort.setPositionOnCard(portDTO.getPositionOnCard());
+                    newPort.setPositionOnDevice(portDTO.getPositionOnDevice());
+                    newPort.setPortType(portType.equals("Device") ? "DEVICE_TO_PORT" : "CARDSLOT_TO_PORT");
+                    newPort.setOperationalState(portDTO.getOperationalState());
+                    newPort.setAdministrativeState(portDTO.getAdministrativeState());
+                    newPort.setUsageState(portDTO.getUsageState());
+                    newPort.setHref(portDTO.getHref());
+                    newPort.setPortSpeed(portDTO.getPortSpeed());
+                    newPort.setCapacity(portDTO.getCapacity());
+                    newPort.setManagementIp(portDTO.getManagementIp());
+                    newPort.setRelation(portType.equals("Device") ? "DEVICE_TO_PORT" : "CARDSLOT_TO_PORT");
+                    newPort.setCardname(portType.equals("Device") ? null : portDTO.getCardname());
+                    newPort.setCardSlot(portType.equals("Device") ? null : newCardSlot);
+                    newPort.setDevice(portType.equals("Device") ? exDevice : null);
+                    portRepo.save(newPort);
+                    logger.info("New port saved: {}", newPort);
+
+                    if (portDTO.getAdditionalAttributes() != null && !portDTO.getAdditionalAttributes().isEmpty()) {
+                        for (AdditionalAttribute additionalAttributeDTO : portDTO.getAdditionalAttributes()) {
+                            AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                            additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                            additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                            AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                            additionalAttributes.add(savedAdditionalAttribute);
+                        }
+                        newPort.setAdditionalAttributes(additionalAttributes);
+                        portRepo.save(newPort);
+                        logger.info("Additional attributes saved for port {}", portDTO.getPortname());
+                    }
+                    additionalAttributes.clear();
+                }
+            } catch (Exception e) {
+                logger.error("Error processing ports for device {}: {}", device.getDeviceDto().getDevicename(), e.getMessage());
+                e.printStackTrace();
+                appExceptionHandler.raiseException(e.getMessage());
+            }
+        }
+
+        String PluggableType = null;
+        if (!device.getPluggableDTOS().isEmpty()) {
+            logger.info("Processing pluggables for device {}", device.getDeviceDto().getDevicename());
+
+            try {
+                HashSet<String> deviceNames = device.getPluggableDTOS().stream()
+                        .map(PluggableDTO::getDeviceName)
+                        .collect(Collectors.toCollection(HashSet::new));
+                List<String> buildingDeviceNames = deviceRepo.findAll().stream()
+                        .filter(device2 -> device2.getBuilding().getBuildingName().contains(device.getDeviceDto().getDevicename()))
+                        .map(Device::getDevicename)
+                        .collect(Collectors.toList());
+                if (!deviceNames.containsAll(buildingDeviceNames)) {
+                    logger.error("Device names must be within the building");
+                    appExceptionHandler.raiseException("Device Name must be Within the Building");
+                }
+                for (PluggableDTO pluggableDTO : device.getPluggableDTOS()) {
+                    if ((pluggableDTO.getPositionOnDevice() == 0 && pluggableDTO.getPositionOnCard() == 0) ||
+                            (pluggableDTO.getPositionOnDevice() != 0 && pluggableDTO.getPositionOnCard() != 0)) {
+                        logger.error("Invalid format input for pluggable: {}", pluggableDTO);
+                        appExceptionHandler.raiseException("Please give Valid Format Input");
+                    }
+                    if (pluggableDTO.getPositionOnDevice() != 0) {
+                        PluggableType = "Device";
+                        Pluggable existingPluggable = pluggableRepo.findByDeviceNameAndPluggableName(pluggableDTO.getDeviceName(),
+                                pluggableDTO.getPlugablename());
+                        if (existingPluggable != null) {
+                            logger.error("Given pluggable already exists: {}", pluggableDTO.getPlugablename());
+                            appExceptionHandler.raiseException("Given Pluggable already exists");
+                        }
+                        Port existingPort = portRepo.findByDeviceNameAndPositionOnDevice(pluggableDTO.getDeviceName(),
+                                pluggableDTO.getPositionOnDevice());
+                        if (existingPort != null) {
+                            logger.error("Position already assigned to another port: {}", pluggableDTO.getPositionOnDevice());
+                            appExceptionHandler.raiseException("Given position already assigned to another port");
+                        }
+                        Pluggable existingPluggableByPosition = pluggableRepo.findByDeviceNameAndPositionOnDevice(pluggableDTO.getDeviceName(),
+                                pluggableDTO.getPositionOnDevice());
+                        if (existingPluggableByPosition != null) {
+                            logger.error("Position already assigned to a pluggable device: {}", pluggableDTO.getPositionOnDevice());
+                            appExceptionHandler.raiseException("Given position already assigned to a pluggable device");
+                        }
+                    } else {
+                        PluggableType = "Card";
+                        Card existingCard = cardRepo.findCardsByCardNameAndDeviceName(pluggableDTO.getCardname(), pluggableDTO.getDeviceName());
+                        if (existingCard == null) {
+                            logger.error("Card not found for device: {}", pluggableDTO.getDeviceName());
+                            appExceptionHandler.raiseException("Given Card with Device Name Not Found");
+                        }
+                        Long cardId = existingCard.getCardid();
+                        String cardName = existingCard.getId().getCardname();
+                        String cardSlotName = cardName + cardId + "/" + pluggableDTO.getPositionOnCard();
+                        Pluggable existingPluggable = pluggableRepo.findPluggableByCardNameAndDeviceName(pluggableDTO.getPlugablename(), cardName);
+                        if (existingPluggable != null) {
+                            logger.error("Given pluggable already found: {}", cardSlotName);
+                            appExceptionHandler.raiseException("Given Pluggable already found");
+                        }
+                        Port existingPort = portRepo.findPortsByCardSlotNameAndPositionOnCard(cardSlotName, pluggableDTO.getPositionOnCard());
+                        if (existingPort != null) {
+                            logger.error("Position already assigned to another port: {}", cardSlotName);
+                            appExceptionHandler.raiseException("Given cardslot already found");
+                        }
+                        existingPluggable = pluggableRepo.findPortsByCardSlotNameAndPositionOnCard(cardSlotName, pluggableDTO.getPositionOnCard());
+                        if (existingPluggable != null) {
+                            logger.error("Position already assigned to another pluggable device: {}", cardSlotName);
+                            appExceptionHandler.raiseException("Given cardslot already found");
+                        }
+                        newCardSlot = new CardSlot();
+                        newCardSlot.setName(cardSlotName);
+                        newCardSlot.setOperationalState(pluggableDTO.getOperationalState());
+                        newCardSlot.setAdministrativeState(pluggableDTO.getAdministrativeState());
+                        newCardSlot.setUsageState(pluggableDTO.getUsageState());
+                        newCardSlot.setHref(pluggableDTO.getHref());
+                        newCardSlot.setRealation("CARD-TO-CARDSLOT");
+                        newCardSlot.setSlotPosition(pluggableDTO.getPositionOnCard());
+                        newCardSlot.setCardname(pluggableDTO.getCardname());
+                        newCardSlot.setCard(existingCard);
+                        carslotRepo.save(newCardSlot);
+                    }
+                    Pluggable newPluggable = new Pluggable();
+                    exDevice = deviceRepo.findDevicesByName(pluggableDTO.getDeviceName().toLowerCase());
+                    Optional<Order> portOrder = orderRepo.findById(pluggableDTO.getOrderId());
+                    if (portOrder.isPresent()) {
+                        newPluggable.setOrder(portOrder.get());
+                    }
+                    newPluggable.setPlugablename(pluggableDTO.getPlugablename());
+                    newPluggable.setPositionOnCard(pluggableDTO.getPositionOnCard());
+                    newPluggable.setPositionOnDevice(pluggableDTO.getPositionOnDevice());
+                    newPluggable.setPluggableModel(pluggableDTO.getPluggableModel());
+                    newPluggable.setPluggablePartNumber(pluggableDTO.getPluggablePartNumber());
+                    newPluggable.setOperationalState(pluggableDTO.getOperationalState());
+                    newPluggable.setAdministrativeState(pluggableDTO.getAdministrativeState());
+                    newPluggable.setUsageState(pluggableDTO.getUsageState());
+                    newPluggable.setHref(pluggableDTO.getHref());
+                    newPluggable.setManagementIp(pluggableDTO.getManagementIp());
+                    newPluggable.setRelation(PluggableType.equals("Device") ? "DEVICE_TO_PORT" : "CARDSLOT_TO_PORT");
+                    newPluggable.setCardname(PluggableType.equals("Device") ? null : pluggableDTO.getCardname());
+                    newPluggable.setCardSlot(PluggableType.equals("Device") ? null : newCardSlot);
+                    newPluggable.setDevice(PluggableType.equals("Device") ? exDevice : null);
+                    pluggableRepo.save(newPluggable);
+                    logger.info("New pluggable saved: {}", newPluggable);
+
+                    if (pluggableDTO.getAdditionalAttributes() != null && !pluggableDTO.getAdditionalAttributes().isEmpty()) {
+                        for (AdditionalAttribute additionalAttributeDTO : pluggableDTO.getAdditionalAttributes()) {
+                            AdditionalAttribute additionalAttribute = new AdditionalAttribute();
+                            additionalAttribute.setKey(additionalAttributeDTO.getKey());
+                            additionalAttribute.setValue(additionalAttributeDTO.getValue());
+                            AdditionalAttribute savedAdditionalAttribute = additionalAttributeRepo.save(additionalAttribute);
+                            additionalAttributes.add(savedAdditionalAttribute);
+                        }
+                        newPluggable.setAdditionalAttributes(additionalAttributes);
+                        pluggableRepo.save(newPluggable);
+                        logger.info("Additional attributes saved for pluggable {}", pluggableDTO.getPlugablename());
+                    }
+                    additionalAttributes.clear();
+                }
+            } catch (Exception e) {
+                logger.error("Error processing pluggable for device {}: {}", device.getDeviceDto().getDevicename(), e.getMessage());
+                e.printStackTrace();
+                appExceptionHandler.raiseException(e.getMessage());
+            }
+        }
+        return "SuccessFullyInserted";
     }
 
-   */
+    public Function<String, List<String>> getShelfNames = device -> {
+        List<Shelf> shelves = shelfRepo.findAvailableShelvesInDevice(device);
+        return shelves.stream()
+                .map(Shelf::getName)
+                .collect(Collectors.toList());
+    };
+
+    public static String extractNumberAfterLastUnderscore(String input) {
+        int lastUnderscoreIndex = input.lastIndexOf('_');
+        if (lastUnderscoreIndex != -1 && lastUnderscoreIndex < input.length() - 1) {
+            return input.substring(lastUnderscoreIndex + 1);
+        }
+        return "";
+    }
+
+   /* public static Set<Long> getOrderIdSet(TmfResponce device) {
+        return (Set<Long>) Stream.of(
+                        device.getDeviceDto() != null ? Stream.of(device.getDeviceDto().getOrderid()) : Stream.empty(),
+                        device.getCardDtos() != null ? device.getCardDtos().stream().map(CardDto::getOrderId) : Stream.empty(),
+                        device.getPortDTOS() != null ? device.getPortDTOS().stream().map(PortDTO::getOrderId) : Stream.empty(),
+                        device.getPluggableDTOS() != null ? device.getPluggableDTOS().stream().map(PluggableDTO::getOrderId) : Stream.empty(),
+                        device.getLogicalPortDTOS() != null ? device.getLogicalPortDTOS().stream().map(LogicalPortDTO::getOrderId) : Stream.empty()
+                )
+                .flatMap(stream -> stream)
+                .filter(orderId -> orderId != null)
+                .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    */
 }
 
 

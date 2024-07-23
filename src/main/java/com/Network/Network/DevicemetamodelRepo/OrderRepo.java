@@ -1,5 +1,6 @@
 package com.Network.Network.DevicemetamodelRepo;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,8 +12,12 @@ import com.Network.Network.DevicemetamodelPojo.Country;
 import com.Network.Network.DevicemetamodelPojo.Order;
 
 public interface OrderRepo extends JpaRepository<Order, Long> {
-	Optional<Order> findById(Long id);
-	@Modifying
-	@Query(value = "DELETE FROM orders WHERE id = :orderId", nativeQuery = true)
-	void deleteByOrderId(@Param("orderId") Long orderId);
+    Optional<Order> findById(Long id);
+
+    @Modifying
+    @Query(value = "DELETE FROM orders WHERE id = :orderId", nativeQuery = true)
+    void deleteByOrderId(@Param("orderId") Long orderId);
+
+    @Query(value = "SELECT o FROM orders o WHERE o.id BETWEEN :startId AND :endId", nativeQuery = true)
+    List<Order> findOrdersInRange(Long startId, Long endId);
 }
