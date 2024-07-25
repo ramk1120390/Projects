@@ -8,6 +8,8 @@ public class KafaMessagedto implements Serializable {
     private String Action;
     private JsonNode Data;
 
+    private String dto;
+
     // Use volatile to ensure visibility of changes to the instance across threads
     private static volatile KafaMessagedto instance = null;
 
@@ -41,5 +43,13 @@ public class KafaMessagedto implements Serializable {
 
     public void setData(JsonNode data) {
         Data = data;
+    }
+
+    public String getDto() {
+        return dto;
+    }
+
+    public void setDto(String dto) {
+        this.dto = dto;
     }
 }

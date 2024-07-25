@@ -62,8 +62,9 @@ public class LocationManagerApi {
             if (response != null) {
                 JsonNode dataNode = customObjectMapper.valueToTree(response);
                 KafaMessagedto kafaMessagedto = KafaMessagedto.getInstance();
-                kafaMessagedto.setAction("test");
+                kafaMessagedto.setAction("CreateCountry");
                 kafaMessagedto.setData(dataNode);
+                kafaMessagedto.setDto(response.getClass().getSimpleName());
                 kafkaProducerService.sendMessage(kafaMessagedto);
             }
         } catch (Exception e) {
@@ -100,6 +101,14 @@ public class LocationManagerApi {
             newState.setNotes(notes);
             response = stateRepo.save(newState);
             logger.info("Successfully inserted state: {}", response);
+            if (response != null) {
+                JsonNode dataNode = customObjectMapper.valueToTree(response);
+                KafaMessagedto kafaMessagedto = KafaMessagedto.getInstance();
+                kafaMessagedto.setAction("CreateState");
+                kafaMessagedto.setData(dataNode);
+                kafaMessagedto.setDto(response.getClass().getSimpleName());
+                kafkaProducerService.sendMessage(kafaMessagedto);
+            }
         } catch (Exception e) {
             logger.error("Error occurred while creating state: {}", e.getMessage());
             e.printStackTrace();
@@ -135,6 +144,14 @@ public class LocationManagerApi {
 
             response = cityRepo.save(newCity);
             logger.info("Successfully inserted city: {}", response);
+            if (response != null) {
+                JsonNode dataNode = customObjectMapper.valueToTree(response);
+                KafaMessagedto kafaMessagedto = KafaMessagedto.getInstance();
+                kafaMessagedto.setAction("CreateCity");
+                kafaMessagedto.setData(dataNode);
+                kafaMessagedto.setDto(response.getClass().getSimpleName());
+                kafkaProducerService.sendMessage(kafaMessagedto);
+            }
 
         } catch (Exception e) {
             logger.error("Error occurred while creating city: {}", e.getMessage());
@@ -182,6 +199,14 @@ public class LocationManagerApi {
             newBuilding.setAdditionalAttributes(additionalAttributes);
             response = buildingRepo.save(newBuilding);
             logger.info("Successfully inserted Building: {}", response);
+            if (response != null) {
+                JsonNode dataNode = customObjectMapper.valueToTree(response);
+                KafaMessagedto kafaMessagedto = KafaMessagedto.getInstance();
+                kafaMessagedto.setAction("CreateBuilding");
+                kafaMessagedto.setData(dataNode);
+                kafaMessagedto.setDto(response.getClass().getSimpleName());
+                kafkaProducerService.sendMessage(kafaMessagedto);
+            }
         } catch (Exception e) {
             logger.error("Error occurred while creating Building: {}", e.getMessage());
             e.printStackTrace();
