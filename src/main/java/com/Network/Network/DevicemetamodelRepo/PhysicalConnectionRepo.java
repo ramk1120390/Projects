@@ -3,6 +3,7 @@ package com.Network.Network.DevicemetamodelRepo;
 import com.Network.Network.DevicemetamodelPojo.PhysicalConnection;
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,9 +30,9 @@ public interface PhysicalConnectionRepo extends JpaRepository<PhysicalConnection
     String findConcatenatedDevicesByName(@Param("name") String name);
 
 
+    @Modifying
+    @Query(value = "DELETE FROM physical_connection pc WHERE pc.name = :name", nativeQuery = true)
+    void deleteByName(@Param("name") String name);
 
-  /*  @Transactional
-    void deleteByPhysicalconnection_id(Long physicalconnectionId);
 
-   */
 }

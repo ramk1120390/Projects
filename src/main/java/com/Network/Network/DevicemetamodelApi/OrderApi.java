@@ -1,16 +1,19 @@
 package com.Network.Network.DevicemetamodelApi;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.Network.Network.DevicemetamodelPojo.*;
 import com.Network.Network.DevicemetamodelRepo.DeviceRepo;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.Network.Network.DevicemetamodelRepo.CustomerRepo;
@@ -26,7 +29,6 @@ public class OrderApi {
     @Autowired
     private AppExceptionHandler appExceptionHandler;
     Logger logger = LoggerFactory.getLogger(OrderApi.class);
-
 
 
     @PostMapping("/CreateOrder")
@@ -134,7 +136,7 @@ public class OrderApi {
             Optional<Order> orderDeatails = orderRepo.findById(orderid);
             if (orderDeatails.isPresent()) {
                 appExceptionHandler.raiseException("Given order id  not available");
-            }
+            }//TODO with all avilable Class
             List<String> Devicedata = deviceRepo.findAll().stream()
                     .filter(device -> device.getOrder().getId().equals(orderid))
                     .map(Device::getDevicename)
@@ -151,5 +153,29 @@ public class OrderApi {
         return response;
     }
 
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @GetMapping("/statistics/{orderId}")
+    public ResponseEntity<Map<String, Object>> getOrderStatistics(@PathVariable Long orderId) {
+        List<Object[]> results = orderRepo.getOrderStatistics(orderId);
+        List<Map<String, Object>> statistics = new ArrayList<>();
+
+        for (Object[] result : results) {
+            Map<String, Object> stat = new HashMap<>();
+            stat.put("orderId", result[0]);
+            stat.put("deviceCount", result[1]);
+            stat.put("cardCount", result[2]);
+            stat.put("portCount", result[3]);
+            stat.put("pluggableCount", result[4]);
+            stat.put("logicalPortCount", result[5]);
+            stat.put("serviceCount", result[6]);
+            statistics.add(stat);
+        }
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "Success");
+        response.put("data", statistics);
+        return ResponseEntity.ok(response);
+    }
     //TODO implement get all orders ,getby id,getby orders by customer name,need find with conataing order id
 }

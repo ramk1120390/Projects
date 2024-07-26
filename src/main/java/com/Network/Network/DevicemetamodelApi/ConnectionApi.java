@@ -383,7 +383,7 @@ public class ConnectionApi {
         }
     }
 
-   /* @DeleteMapping("/deletePhysicalConnection")
+    @DeleteMapping("/deletePhysicalConnection")
     @Transactional
     public JsonNode deletePhysicalConnection(@RequestParam(name = "PhysicalConnection") String PhysicalConnection) {
         JsonNode response;
@@ -414,7 +414,7 @@ public class ConnectionApi {
                     .map(AdditionalAttribute::getId)
                     .collect(Collectors.toList());
             logger.info("Deleting PhysicalConnection with Name: {}", PhysicalConnectionNameLower);
-            physicalConnectionRepo.deleteByPhysicalconnection_id(ConnectionId);
+            physicalConnectionRepo.deleteByName(PhysicalConnection);
             if (!aaIds.isEmpty()) {
                 logger.info("Deleting additional attributes associated with PhysicalConnection: {}", PhysicalConnectionNameLower);
                 additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
@@ -436,9 +436,8 @@ public class ConnectionApi {
         return response;
     }
 
-    */
 
-   /* @DeleteMapping("/deleteLogicalConnection")
+    @DeleteMapping("/deleteLogicalConnection")
     @Transactional
     public JsonNode deleteLogicalConnection(@RequestParam(name = "LogicalConnection") String LogicalConnection) {
         JsonNode response;
@@ -458,12 +457,12 @@ public class ConnectionApi {
                     .map(AdditionalAttribute::getId)
                     .collect(Collectors.toList());
             logger.info("Deleting deleteLogicalConnection with Name: {}", LogicalConnectionNameLower);
-            physicalConnectionRepo.deleteByPhysicalconnection_id(ConnectionId);
+          //  physicalConnectionRepo.deleteByPhysicalconnection_id(ConnectionId);
             if (!aaIds.isEmpty()) {
                 logger.info("Deleting additional attributes associated with LogicalConnection: {}", LogicalConnectionNameLower);
                 additionalAttributeRepo.deleteAdditionalAttributesByIds(aaIds);
             }
-            logicalConnectionRepo.deleteByLogicalconnection_id(ConnectionId);
+            logicalConnectionRepo.deleteByName(LogicalConnection);
             response = objectMapper.createObjectNode()
                     .put("status", "Success")
                     .put("message", "PhysicalConnection deleted successfully")
@@ -480,8 +479,6 @@ public class ConnectionApi {
         return response;
     }
 
-
-    */
 
 }
 

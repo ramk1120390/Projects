@@ -4,11 +4,13 @@ import com.Network.Network.DevicemetamodelPojo.LogicalConnection;
 import com.Network.Network.DevicemetamodelPojo.LogicalPort;
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface LogicalConnectionRepo extends JpaRepository<LogicalConnection, Long> {
     LogicalConnection findByName(String name);
+
     @Query(value = "CALL CreateLogicalConnection(:p_name, :p_devicea, :p_devicez, :p_deviceaport, :p_devicezport, :p_connectionType, :p_bandwidth, :p_devicesConnected, :p_physicalconnection, :p_logicalportnamea, :p_logicalportnameb, :keys, :p_values, :success)", nativeQuery = true)
     int createLogicalConnection(
             @Param("p_name") String name,
@@ -25,9 +27,10 @@ public interface LogicalConnectionRepo extends JpaRepository<LogicalConnection, 
             @Param("keys") String[] keys,
             @Param("p_values") String[] values,
             @Param("success") int success);
-  /*  @Transactional
-    void deleteByLogicalconnection_id(Long id);
-   */
+
+    @Modifying
+    @Query(value = "DELETE FROM logical_connection lc WHERE lc.name = :name", nativeQuery = true)
+    void deleteByName(@Param("name") String name);
 }
 
 
